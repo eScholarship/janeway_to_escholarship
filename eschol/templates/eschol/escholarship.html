@@ -1,0 +1,14 @@
+{% load static from staticfiles %}
+{% load hooks %}
+{% load i18n %}
+<html>
+<head>
+    <meta charset="utf-8">
+</head>
+<body>
+    <link href="https://submit.escholarship.org/jschol_static/gloss.css" rel="stylesheet">
+    <article id="main_article">
+        {{ article_content|safe }}
+    </article>
+</body>
+</html>
