@@ -6,7 +6,9 @@
     <meta charset="utf-8">
 </head>
 <body>
-    <link href="https://submit.escholarship.org/jschol_static/gloss.css" rel="stylesheet">
+    {% if css_file %}
+    <link href="{{ css_file }}" rel="stylesheet">
+    {% endif %}
     <article id="main_article">
         {{ article_content|safe }}
     </article>

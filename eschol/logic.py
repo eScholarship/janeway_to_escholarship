@@ -195,7 +195,7 @@ def get_article_json(article, unit):
         item.update({"externalLinks": [rg.remote_file]})
     elif rg.file:
         if rg.file.mime_type == 'text/xml':
-            r = render_to_string("eschol/escholarship.html", {'article_content': rg.render(recover=True)})
+            r = render_to_string("eschol/escholarship.html", {'article_content': rg.render(recover=True), 'css_file': rg.css_file})
             s = force_bytes(r,  encoding="utf-8")
             p = Popen(['xmllint', '--html', '--xmlout', '--format', '--encode', 'utf-8', '/dev/stdin'], stdin=PIPE, stdout=PIPE)
             (output, error_output) = p.communicate(s)
@@ -224,10 +224,13 @@ def get_article_json(article, unit):
             # add xml and pdf to suppFiles
             suppFiles.append(get_supp_file_json(rg.file, article, filename="{}.xml".format(short_ark)))
             pdfs = article.pdfs
-            # TODO: if pdfs.count() > 1 or < 0 ERROR
             suppFiles.append(get_supp_file_json(pdfs[0].file, article, filename="{}.pdf".format(short_ark)))
             for imgf in rg.images.all():
                 img_files.append({"file": imgf.original_filename, "fetchLink": imgf.remote_url if imgf.is_remote else get_file_url(article, imgf.pk)})
+            if rg.css_file:
+                css = rg.css_file
+                item.update({"cssFiles": {"file": css.original_filename,
+                                          "fetchLink": css.remote_url if css.is_remote else get_file_url(article, css.pk)}})
         else:
             item.update({
                 "contentLink": get_file_url(article, rg.file.pk),
