@@ -1,0 +1,22 @@
+{% extends "admin/core/base.html" %}
+{% load foundation %}
+
+{% block title %}Janeway to Eschol Connection Manager -- {{ issue }}{% endblock %}
+
+{% block body %}
+<div class="box">
+    <div class="title-area">
+        <h2>Publish Issue</h2>
+    </div>
+    <div class="content">
+        <a href="{% url 'eschol_publish_issue' issue.pk %}">Publish {{ issue }}</a>
+        <ul>
+            {% for article in articles %}
+                {% with article.escholarticle_set.all|first as ea %}
+                <li><a href="{% url 'eschol_publish_article' article.pk %}">Publish {{ article }}</a> {% if ea %}(last published {{ ea.date_published }}){% else %} (not published){% endif %}</li>
+                {% endwith %}
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock body %}

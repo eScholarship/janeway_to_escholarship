@@ -6,10 +6,14 @@
 {% block body %}
 <div class="box">
     <div class="title-area">
-        <h2>Management Form</h2>
+        <h2>Publish Issues</h2>
     </div>
     <div class="content">
-        {{ form|foundation }}
+        <ul>
+            {% for issue in issues %}
+                <li><a href="{% url 'eschol_list_articles' issue.pk %}">{{ issue }}</a></li>
+            {% endfor %}
+        </ul>
     </div>
 </div>
 {% endblock body %}
