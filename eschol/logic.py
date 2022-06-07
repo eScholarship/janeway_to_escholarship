@@ -54,17 +54,14 @@ def save_article_file(output, article, original_filename, file_mime, owner, labe
     with open(fpath, 'wb') as f:
         f.write(output)
 
-    from core import models
-    new_file = models.File(
-        mime_type=file_mime,
-        original_filename=original_filename,
-        uuid_filename=filename,
-        label=label,
-        description=description,
-        owner=owner,
-        is_galley=False,
-        article_id=article.pk
-    )
+    new_file = File(mime_type=file_mime,
+                    original_filename=original_filename,
+                    uuid_filename=filename,
+                    label=label,
+                    description=description,
+                    owner=owner,
+                    is_galley=False,
+                    article_id=article.pk)
 
     new_file.save()
 
@@ -194,7 +191,7 @@ def get_article_json(article, unit):
     if rg.is_remote:
         item.update({"externalLinks": [rg.remote_file]})
     elif rg.file:
-        if rg.file.mime_type == 'text/xml':
+        if rg.file.mime_type == 'application/xml' or rg.file.mime_type == 'text/xml':
             r = render_to_string("eschol/escholarship.html", {'article_content': rg.render(recover=True), 'css_file': rg.css_file})
             s = force_bytes(r,  encoding="utf-8")
             p = Popen(['xmllint', '--html', '--xmlout', '--format', '--encode', 'utf-8', '/dev/stdin'], stdin=PIPE, stdout=PIPE)
@@ -208,14 +205,10 @@ def get_article_json(article, unit):
             html_filename = "{}.html".format(short_ark)
             html_files = File.objects.filter(original_filename=html_filename, article_id=article.id)
             if html_files.exists():
-                assert html_files.count() == 1, 'Only 1 HTML file allowed per article'
-                html_file = html_files[0]
-                with open(html_file.journal_path(article.journal), 'wb') as f:
-                    f.write(output)
-            else:
-                html_file = save_article_file(output, article, html_filename, "text/html", 
-                                              article.owner, label="Generated HTML", 
-                                              description="HTML file generated from JATS for eschol")
+                html_files.delete()
+            html_file = save_article_file(output, article, html_filename, "text/html", 
+                                          article.owner, label="Generated HTML", 
+                                          description="HTML file generated from JATS for eschol")
             item.update({
                 "id": ark,
                 "contentLink": get_file_url(article, html_file.pk),
@@ -224,7 +217,8 @@ def get_article_json(article, unit):
             # add xml and pdf to suppFiles
             suppFiles.append(get_supp_file_json(rg.file, article, filename="{}.xml".format(short_ark)))
             pdfs = article.pdfs
-            suppFiles.append(get_supp_file_json(pdfs[0].file, article, filename="{}.pdf".format(short_ark)))
+            if len(pdfs) > 0:
+                suppFiles.append(get_supp_file_json(pdfs[0].file, article, filename="{}.pdf".format(short_ark)))
             for imgf in rg.images.all():
                 img_files.append({"file": imgf.original_filename, "fetchLink": imgf.remote_url if imgf.is_remote else get_file_url(article, imgf.pk)})
             if rg.css_file:
@@ -271,28 +265,15 @@ def withdraw_item(article, public_message, **args):
 
     pprint.pprint(r.text)
 
-def issue_to_eschol(**options):
-    issue = options.get("issue")
-    unit = JournalUnit.objects.get(journal=issue.journal).unit
+def get_unit(journal):
+    if JournalUnit.objects.filter(journal=journal).exists():
+        unit = JournalUnit.objects.get(journal=journal).unit
+    else:
+        unit = journal.code
+    return unit
 
-    for a in issue.get_sorted_articles():
-        (json, epub) = get_article_json(a, unit)
-        pprint.pprint(json)
-
-    variables = {"input": {"journal": unit,
-                           "issue": int(issue.issue),
-                           "volume": issue.volume,
-                           "coverImageURL": issue.cover_image.url}}
-    pprint.pprint(variables)
-    r = send_to_eschol(issue_query, variables)
-    print(r.text)
-
-def article_to_eschol(**options):
-    article = options.get("article")
-    r = options.get("request", None)
-    
-    unit = JournalUnit.objects.get(journal=article.journal).unit
-
+def send_article(article):
+    unit = get_unit(article.journal)
     (item, epub) = get_article_json(article, unit)
     if epub:
         item["id"] = epub.ark
@@ -306,15 +287,39 @@ def article_to_eschol(**options):
 
     try:
         data = json.loads(r.text)
-        #print(data)
+        print(data)
         if "data" in data:
             di = data["data"]["depositItem"]
-            print("{}: {}".format(di["message"], di["id"]))
+            msg = "{}: {}".format(di["message"], di["id"])
             if epub:
                 epub.save()
             else:
                 EscholArticle.objects.create(article=article, ark=di["id"])
         else:
-            print(data["errors"])
+            msg = data["errors"]
     except json.decoder.JSONDecodeError:
-        print(r.text)
+        msg = r.text
+
+    return msg
+
+
+def issue_to_eschol(**options):
+    issue = options.get("issue")
+    unit = get_unit(issue.journal)
+
+    cover_url = "{}{}".format(issue.journal.site_url(), issue.cover_image.url)
+    variables = {"input": {"journal": unit,
+                           "issue": int(issue.issue),
+                           "volume": issue.volume,
+                           "coverImageURL": cover_url}}
+
+    pprint.pprint(variables)
+    r = send_to_eschol(issue_query, variables)
+    print(r.text)
+
+    for a in issue.get_sorted_articles():
+        send_article(a)
+
+def article_to_eschol(**options):
+    article = options.get("article")
+    return send_article(article)
