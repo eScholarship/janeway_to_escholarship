@@ -3,20 +3,43 @@
 
 {% block title %}Janeway to Eschol Connection Manager -- {{ issue }}{% endblock %}
 
+{% block breadcrumbs %}
+    {{ block.super }}
+    <li><a href="{% url 'eschol_manager' %}">Janeway to Escholarship Plugin</a></li>
+    <li>Publish Issue</li>
+{% endblock breadcrumbs %}
+
 {% block body %}
 <div class="box">
     <div class="title-area">
-        <h2>Publish Issue</h2>
+        <h2>Publish {{ issue }}</h2>
     </div>
     <div class="content">
-        <a href="{% url 'eschol_publish_issue' issue.pk %}">Publish {{ issue }}</a>
-        <ul>
+        <a class="button" href="{% url 'eschol_publish_issue' issue.pk %}">Publish Full Issue</a>
+        <table class="table table-bordered small" id="eschol_publish_articles">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Date Published</th>
+                <th>ARK</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
             {% for article in articles %}
                 {% with article.escholarticle_set.all|first as ea %}
-                <li><a href="{% url 'eschol_publish_article' article.pk %}">Publish {{ article }}</a> {% if ea %}(last published {{ ea.date_published }}){% else %} (not published){% endif %}</li>
+                <tr>
+                    <td>{{ article.pk }}</td>
+                    <td>{{ article.title }}</td>
+                    <td>{% if ea %}{{ ea.date_published }}{% else %} (not published){% endif %}</td>
+                    <td>{% if ea %}{{ ea.ark }}{% endif %}</td>
+                    <td><a href="{% url 'eschol_publish_article' article.pk %}">Publish</a></td>
+                </tr>
                 {% endwith %}
             {% endfor %}
-        </ul>
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock body %}

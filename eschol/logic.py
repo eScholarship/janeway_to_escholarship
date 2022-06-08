@@ -82,11 +82,14 @@ def send_to_eschol(query, variables):
     return r
 
 def get_provisional_id(article):
-    variables = {"input": {"sourceName": "janeway", "sourceID": str(article.pk)}}
-    r = send_to_eschol(mint_query, variables)
-    data = json.loads(r.text)    
-    # TODO: ERROR
-    return data["data"]["mintProvisionalID"]["id"]
+    if hasattr(settings, 'ESCHOL_API_URL'):
+        variables = {"input": {"sourceName": "janeway", "sourceID": str(article.pk)}}
+        r = send_to_eschol(mint_query, variables)
+        data = json.loads(r.text)
+        return data["data"]["mintProvisionalID"]["id"]
+    else:
+        # Return a fake ark if we're not connected to the API
+        return "ark:/13030/qtXXXXXXXX"
 
 def get_file_url(article, fid):
     token = AccessToken.objects.create(article_id=article.pk, file_id=fid)
@@ -288,26 +291,25 @@ def send_article(article):
         if epub:
             item["id"] = epub.ark
 
-        #print(epub)
+        if hasattr(settings, 'ESCHOL_API_URL'):
+            try:
+                variables = {"item": item}
+                r = send_to_eschol(deposit_query, variables)
 
-        pprint.pprint(item)
-
-        variables = {"item": item}
-        r = send_to_eschol(deposit_query, variables)
-
-        data = json.loads(r.text)
-        print(data)
-        if "data" in data:
-            di = data["data"]["depositItem"]
-            msg = "{}: {}".format(di["message"], di["id"])
-            if epub:
-                epub.save()
-            else:
-                EscholArticle.objects.create(article=article, ark=di["id"])
+                data = json.loads(r.text)
+                if "data" in data:
+                    di = data["data"]["depositItem"]
+                    msg = "{}: {}".format(di["message"], di["id"])
+                    if epub:
+                        epub.save()
+                    else:
+                        EscholArticle.objects.create(article=article, ark=di["id"])
+                else:
+                    msg = data["errors"]
+            except json.decoder.JSONDecodeError:
+                msg = r.text
         else:
-            msg = data["errors"]
-    except json.decoder.JSONDecodeError:
-        msg = r.text
+            msg = str(item)
     except Exception as e:
         msg = str(e)
 
@@ -316,22 +318,25 @@ def send_article(article):
 def issue_to_eschol(**options):
     issue = options.get("issue")
     unit = get_unit(issue.journal)
+    msgs = []
 
-    cover_url = "{}{}".format(issue.journal.site_url(), issue.cover_image.url)
-    variables = {"input": {"journal": unit,
-                           "issue": int(issue.issue),
-                           "volume": issue.volume,
-                           "coverImageURL": cover_url}}
+    if issue.cover_image.url:
+        cover_url = "{}{}".format(issue.journal.site_url(), issue.cover_image.url)
+        variables = {"input": {"journal": unit,
+                               "issue": int(issue.issue),
+                               "volume": issue.volume,
+                               "coverImageURL": cover_url}}
 
-    pprint.pprint(variables)
-    r = send_to_eschol(issue_query, variables)
-    print(r.text)
+        if hasattr(settings, 'ESCHOL_API_URL'):
+            r = send_to_eschol(issue_query, variables)
+            msgs.append(r.text)
+        else:
+            msgs.append(str(variables))
 
     for a in issue.get_sorted_articles():
-        msg = send_article(a)
-        print(msg)
+        msgs.append(send_article(a))
+    return msgs
 
 def article_to_eschol(**options):
     article = options.get("article")
-    msg = send_article(article)
-    print(msg)
+    return [send_article(article)]

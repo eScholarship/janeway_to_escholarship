@@ -3,6 +3,11 @@
 
 {% block title %}Janeway to Eschol Connection Manager{% endblock %}
 
+{% block breadcrumbs %}
+    {{ block.super }}
+    <li><a href="{% url 'eschol_manager' %}">Janeway to Escholarship Plugin</a></li>
+{% endblock breadcrumbs %}
+
 {% block body %}
 <div class="box">
     <div class="title-area">

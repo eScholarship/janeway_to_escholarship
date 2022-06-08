@@ -3,6 +3,8 @@ from django.core.management.base import BaseCommand
 from submission.models import Article
 from plugins.eschol import logic
 
+import pprint
+
 class Command(BaseCommand):
     """ Deposits specified article in escholarship via graphql api"""
     help = "Deposits specified article in escholarship via graphql api"
@@ -16,4 +18,4 @@ class Command(BaseCommand):
         article_id = options.get("article_id")
         article = Article.objects.get(id=article_id)
 
-        logic.article_to_eschol(article=article)
+        pprint.pprint(logic.article_to_eschol(article=article))

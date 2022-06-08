@@ -19,20 +19,24 @@ from .logic import issue_to_eschol, article_to_eschol
 def publish_issue(request, issue_id):
     template = 'eschol/published.html'
     issue = get_object_or_404(Issue, pk=issue_id)
-    msg = issue_to_eschol(issue=issue)
+    msgs = issue_to_eschol(issue=issue)
     context = {
         'obj': issue,
-        'message': msg
+        'messages': msgs,
+        'issue': issue,
+        'obj_name': "Issue"
     }
     return render(request, template, context)
 
 def publish_article(request, article_id):
     template = 'eschol/published.html'
     article = get_object_or_404(Article, pk=article_id)
-    msg = article_to_eschol(article=article)
+    msgs = article_to_eschol(article=article)
     context = {
         'obj': article,
-        'message': msg
+        'messages': msgs,
+        'issue': article.issue,
+        'obj_name': "Article"
     }
     return render(request, template, context)
 
@@ -48,9 +52,13 @@ def list_articles(request, issue_id):
 
 def eschol_manager(request):
     template = 'eschol/manager.html'
-    # get current journsl?  Look at OAI
+    if request.journal:
+        issues = Issue.objects.filter(journal=request.journal)
+    else:
+        issues = Issue.objects.all()
+
     context = {
-        'issues': Issue.objects.all()
+        'issues': issues
     }
 
     return render(request, template, context)
