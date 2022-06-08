@@ -14,6 +14,13 @@ from uuid import uuid4
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
 
+valid_rights = ["https://creativecommons.org/licenses/by/4.0/",
+                "https://creativecommons.org/licenses/by-sa/4.0/",
+                "https://creativecommons.org/licenses/by-nd/4.0/",
+                "https://creativecommons.org/licenses/by-nc/4.0/",
+                "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+                "https://creativecommons.org/licenses/by-nc-nd/4.0/"]
+
 deposit_query = """mutation depositItem($item: DepositItemInput!) {
     depositItem(input: $item) {
         id
@@ -135,6 +142,8 @@ def get_article_json(article, unit):
         l = article.license.url
         if not l.endswith("/"):
             l += "/"
+        if not l in valid_rights:
+            raise Exception("Invalid rights value: {}".format(l))
         item["rights"] = l
 
     if article.publisher_name:
@@ -274,18 +283,18 @@ def get_unit(journal):
 
 def send_article(article):
     unit = get_unit(article.journal)
-    (item, epub) = get_article_json(article, unit)
-    if epub:
-        item["id"] = epub.ark
-
-    #print(epub)
-
-    pprint.pprint(item)
-
-    variables = {"item": item}
-    r = send_to_eschol(deposit_query, variables)
-
     try:
+        (item, epub) = get_article_json(article, unit)
+        if epub:
+            item["id"] = epub.ark
+
+        #print(epub)
+
+        pprint.pprint(item)
+
+        variables = {"item": item}
+        r = send_to_eschol(deposit_query, variables)
+
         data = json.loads(r.text)
         print(data)
         if "data" in data:
@@ -299,9 +308,10 @@ def send_article(article):
             msg = data["errors"]
     except json.decoder.JSONDecodeError:
         msg = r.text
+    except Exception as e:
+        msg = str(e)
 
     return msg
-
 
 def issue_to_eschol(**options):
     issue = options.get("issue")
@@ -318,8 +328,10 @@ def issue_to_eschol(**options):
     print(r.text)
 
     for a in issue.get_sorted_articles():
-        send_article(a)
+        msg = send_article(a)
+        print(msg)
 
 def article_to_eschol(**options):
     article = options.get("article")
-    return send_article(article)
+    msg = send_article(article)
+    print(msg)
