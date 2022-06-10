@@ -145,9 +145,8 @@ def get_article_json(article, unit):
         l = article.license.url
         if not l.endswith("/"):
             l += "/"
-        if not l in valid_rights:
-            raise Exception("Invalid rights value: {}".format(l))
-        item["rights"] = l
+        if l in valid_rights:
+            item["rights"] = l
 
     if article.publisher_name:
         item["publisher"] = article.publisher_name
