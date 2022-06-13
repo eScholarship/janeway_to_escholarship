@@ -319,7 +319,7 @@ def issue_to_eschol(**options):
     unit = get_unit(issue.journal)
     msgs = []
 
-    if issue.cover_image.url:
+    if issue.cover_image and issue.cover_image.url:
         cover_url = "{}{}".format(issue.journal.site_url(), issue.cover_image.url)
         variables = {"input": {"journal": unit,
                                "issue": int(issue.issue),
