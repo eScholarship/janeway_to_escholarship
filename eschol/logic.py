@@ -1,6 +1,5 @@
 from django.conf import settings
 from django.urls import reverse
-from django.utils import timezone
 
 from journal.models import ArticleOrdering, SectionOrdering
 
@@ -98,11 +97,14 @@ def get_file_url(article, fid):
                                     reverse('access_article_file', kwargs={"article_id": article.pk, "file_id": fid}),
                                     token.token)
 
-def get_supp_file_json(f, article, filename=None):
-    return {"file": filename if filename else f.original_filename,
-            "contentType": f.mime_type,
-            "size": f.get_file_size(article),
-            "fetchLink": get_file_url(article, f.pk)}
+def get_supp_file_json(f, article, filename=None, title=None):
+    x = {"file": filename if filename else f.original_filename,
+         "contentType": f.mime_type,
+         "size": f.get_file_size(article),
+        "fetchLink": get_file_url(article, f.pk)}
+    if title:
+        x.update({"title": title})
+    return x
 
 def get_article_json(article, unit):
     if EscholArticle.objects.filter(article=article).exists():
@@ -130,6 +132,9 @@ def get_article_json(article, unit):
         "dateAccepted": article.date_accepted.strftime("%Y-%m-%d"),
         "datePublished": article.date_published.strftime("%Y-%m-%d")
     }
+
+    if article.custom_how_to_cite:
+        item["customCitation"] = article.custom_how_to_cite
 
     if article.first_page:
         item["fpage"] = article.first_page
@@ -163,6 +168,7 @@ def get_article_json(article, unit):
                     "issueTitle": issue.issue_title,
                     "issueDate": issue.date.strftime("%Y-%m-%d"),
                     "issueDescription": issue.issue_description,
+                    "issueCoverCaption": issue.short_description,
                     'orderInSection': int(sorder + str(aorder.order).zfill(4))})
 
     authors = []
@@ -226,10 +232,16 @@ def get_article_json(article, unit):
                 "contentFileName": html_file.original_filename,
             })
             # add xml and pdf to suppFiles
-            suppFiles.append(get_supp_file_json(rg.file, article, filename="{}.xml".format(short_ark)))
+            suppFiles.append(get_supp_file_json(rg.file,
+                                                article,
+                                                filename="{}.xml".format(short_ark)),
+                                                title="[XML] {}".format(article.title))
             pdfs = article.pdfs
             if len(pdfs) > 0:
-                suppFiles.append(get_supp_file_json(pdfs[0].file, article, filename="{}.pdf".format(short_ark)))
+                suppFiles.append(get_supp_file_json(pdfs[0].file,
+                                                    article,
+                                                    filename="{}.pdf".format(short_ark),
+                                                    title="[PDF] {}".format(article.title)))
             for imgf in rg.images.all():
                 img_files.append({"file": imgf.original_filename, "fetchLink": imgf.remote_url if imgf.is_remote else get_file_url(article, imgf.pk)})
             if rg.css_file:

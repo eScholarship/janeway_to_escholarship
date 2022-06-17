@@ -1,4 +1,6 @@
 from django.db import models
+from django.conf import settings
+
 from journal.models import Journal
 from submission.models import Article
 from secrets import token_urlsafe
@@ -17,6 +19,12 @@ class EscholArticle(models.Model):
 
     def __str__(self):
         return "{}: {}".format(str(self.article), self.ark)
+
+    def get_short_ark(self):
+        return self.ark.split("/")[-1][-8]
+
+    def get_eschol_url(self):
+        return "{}/uc/item/{}".format(settings.JSCHOL_URL, self.get_short_ark())
 
 class AccessToken(models.Model):
     token = models.CharField(max_length=50)

@@ -31,7 +31,11 @@
                 {% with article.escholarticle_set.all|first as ea %}
                 <tr>
                     <td>{{ article.pk }}</td>
+                    {% if ea %}
+                    <td><a href="{{ ea.get_eschol_url }}">{{ article.title }}</a></td>
+                    {% else %}
                     <td>{{ article.title }}</td>
+                    {% endif %}
                     <td>{% if ea %}{{ ea.date_published }}{% else %} (not published){% endif %}</td>
                     <td>{% if ea %}{{ ea.ark }}{% endif %}</td>
                     <td><a href="{% url 'eschol_publish_article' article.pk %}">Publish</a></td>
