@@ -168,8 +168,9 @@ def get_article_json(article, unit):
                     "issueTitle": issue.issue_title,
                     "issueDate": issue.date.strftime("%Y-%m-%d"),
                     "issueDescription": issue.issue_description,
-                    "issueCoverCaption": issue.short_description,
                     'orderInSection': int(sorder + str(aorder.order).zfill(4))})
+        if issue.short_description:
+            item.update({"issueCoverCaption": issue.short_description})
 
     authors = []
     for a in article.authors.all():
@@ -234,8 +235,8 @@ def get_article_json(article, unit):
             # add xml and pdf to suppFiles
             suppFiles.append(get_supp_file_json(rg.file,
                                                 article,
-                                                filename="{}.xml".format(short_ark)),
-                                                title="[XML] {}".format(article.title))
+                                                filename="{}.xml".format(short_ark),
+                                                title="[XML] {}".format(article.title)))
             pdfs = article.pdfs
             if len(pdfs) > 0:
                 suppFiles.append(get_supp_file_json(pdfs[0].file,
