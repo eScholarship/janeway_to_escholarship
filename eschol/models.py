@@ -21,10 +21,10 @@ class EscholArticle(models.Model):
         return "{}: {}".format(str(self.article), self.ark)
 
     def get_short_ark(self):
-        return self.ark.split("/")[-1][-8]
+        return self.ark.split("/")[-1][-8:]
 
     def get_eschol_url(self):
-        return "{}/uc/item/{}".format(settings.JSCHOL_URL, self.get_short_ark())
+        return "{}uc/item/{}".format(settings.JSCHOL_URL, self.get_short_ark())
 
 class AccessToken(models.Model):
     token = models.CharField(max_length=50)
