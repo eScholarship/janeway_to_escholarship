@@ -63,7 +63,6 @@ def eschol_manager(request):
 
     return render(request, template, context)
 
-
 def access_article_file(request, article_id, file_id):
     if not "access" in request.GET:
         return HttpResponseForbidden()

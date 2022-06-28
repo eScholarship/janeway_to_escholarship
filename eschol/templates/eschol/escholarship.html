@@ -6,6 +6,9 @@
     <meta charset="utf-8">
 </head>
 <body>
+    {% if default_css_url %}
+        <link href="{{ default_css_url}}" rel="stylesheet">
+    {% endif %}
     {% if css_file %}
     <link href="{{ css_file }}" rel="stylesheet">
     {% endif %}

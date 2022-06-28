@@ -210,7 +210,10 @@ def get_article_json(article, unit):
         item.update({"externalLinks": [rg.remote_file]})
     elif rg.file:
         if rg.file.mime_type == 'application/xml' or rg.file.mime_type == 'text/xml':
-            r = render_to_string("eschol/escholarship.html", {'article_content': rg.render(recover=True), 'css_file': rg.css_file})
+
+            r = render_to_string("eschol/escholarship.html", {'article_content': rg.render(recover=True),
+                                                              'default_css_url': get_default_css_url(article.journal),
+                                                              'css_file': rg.css_file})
             s = force_bytes(r,  encoding="utf-8")
             p = Popen(['xmllint', '--html', '--xmlout', '--format', '--encode', 'utf-8', '/dev/stdin'], stdin=PIPE, stdout=PIPE)
             (output, error_output) = p.communicate(s)
@@ -288,6 +291,11 @@ def withdraw_item(article, public_message, **args):
     r = send_to_eschol(withdraw_query, variables)
 
     pprint.pprint(r.text)
+
+def get_default_css_url(journal):
+    if JournalUnit.objects.filter(journal=journal).exists():
+        return JournalUnit.objects.get(journal=journal).default_css_url
+    return None
 
 def get_unit(journal):
     if JournalUnit.objects.filter(journal=journal).exists():
