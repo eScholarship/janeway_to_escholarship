@@ -2,10 +2,9 @@ from django.conf import settings
 from django.urls import reverse
 
 from journal.models import ArticleOrdering, SectionOrdering
+from core.models import File
 
 from plugins.eschol.models import *
-
-from core.models import File
 
 import requests, pprint, json, os
 from subprocess import Popen, PIPE
@@ -106,6 +105,16 @@ def get_supp_file_json(f, article, filename=None, title=None):
         x.update({"title": title})
     return x
 
+def convertDataAvailability(d):
+    types = {"Public repository": "publicRepo",
+            "Public repository: available after publication": "publicRepoLater",
+            "Supplemental files": "suppFiles",
+            "Within the manuscript": "withinManuscript",
+            "Available upon request": "onRequest",
+            "Managed by a third party": "thirdParty",
+            "Not available": "notAvail"}
+    return types.get(d, None)
+
 def get_article_json(article, unit):
     if EscholArticle.objects.filter(article=article).exists():
         epub = EscholArticle.objects.get(article=article)
@@ -155,6 +164,14 @@ def get_article_json(article, unit):
 
     if article.publisher_name:
         item["publisher"] = article.publisher_name
+
+    data_avail_set = article.fieldanswer_set.filter(field__name="Data Availability")
+    if data_avail_set.exists():
+        item["dataAvailability"] = convertDataAvailability(data_avail_set[0].answer)
+        if data_avail_set[0].answer == "Public repository":
+            data_url_set = article.fieldanswer_set.filter(field__name="Data URL")
+            if data_url_set.exists():
+                item["dataURL"] = data_url_set[0].answer
 
     issue = article.issue
     if issue:
