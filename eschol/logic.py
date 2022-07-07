@@ -113,7 +113,11 @@ def convertDataAvailability(d):
             "Available upon request": "onRequest",
             "Managed by a third party": "thirdParty",
             "Not available": "notAvail"}
-    return types.get(d, None)
+
+    for f in d:
+        if f.answer in types:
+            return types.get(f.answer, None)
+    return None
 
 def get_article_json(article, unit):
     if EscholArticle.objects.filter(article=article).exists():
@@ -167,11 +171,13 @@ def get_article_json(article, unit):
 
     data_avail_set = article.fieldanswer_set.filter(field__name="Data Availability")
     if data_avail_set.exists():
-        item["dataAvailability"] = convertDataAvailability(data_avail_set[0].answer)
-        if data_avail_set[0].answer == "Public repository":
-            data_url_set = article.fieldanswer_set.filter(field__name="Data URL")
-            if data_url_set.exists():
-                item["dataURL"] = data_url_set[0].answer
+        data_avail = convertDataAvailability(data_avail_set)
+        if data_avail:
+            item["dataAvailability"] = data_avail
+            if item["dataAvailability"] == "publicRepo":
+                data_url_set = article.fieldanswer_set.filter(field__name="Data URL")
+                if data_url_set.exists():
+                    item["dataURL"] = data_url_set[0].answer
 
     issue = article.issue
     if issue:
