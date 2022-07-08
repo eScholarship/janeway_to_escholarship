@@ -136,7 +136,7 @@ def get_article_json(article, unit):
         "contentVersion": "PUBLISHER_VERSION",
         "abstract": article.abstract,
         "journal": article.journal.name,
-        "sectionHeader": article.section.name,
+        "sectionHeader": article.section.plural if article.section.plural and article.section.published_articles().count() > 1 else article.section.name,
         "issn": article.journal.issn,
         "units": [unit],
         "language": article.language,
