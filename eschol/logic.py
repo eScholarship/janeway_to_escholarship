@@ -2,7 +2,7 @@ from django.conf import settings
 from django.urls import reverse
 
 from journal.models import ArticleOrdering, SectionOrdering
-from core.models import File
+from core.models import File, XSLFile
 
 from plugins.eschol.models import *
 
@@ -237,6 +237,10 @@ def get_article_json(article, unit):
         item.update({"externalLinks": [rg.remote_file]})
     elif rg.file:
         if rg.file.mime_type == 'application/xml' or rg.file.mime_type == 'text/xml':
+            print(settings.DEFAULT_XSL_FILE_LABEL)
+            if not rg.xsl_file:
+                rg.xsl_file = XSLFile.objects.get(label=settings.DEFAULT_XSL_FILE_LABEL)
+                rg.save()
 
             r = render_to_string("eschol/escholarship.html", {'article_content': rg.render(recover=True),
                                                               'default_css_url': get_default_css_url(article.journal),
