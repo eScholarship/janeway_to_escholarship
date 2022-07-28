@@ -12,6 +12,10 @@ from uuid import uuid4
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
 
+from utils.logger import get_logger
+logger = get_logger(__name__)
+
+
 valid_rights = ["https://creativecommons.org/licenses/by/4.0/",
                 "https://creativecommons.org/licenses/by-sa/4.0/",
                 "https://creativecommons.org/licenses/by-nd/4.0/",
@@ -349,8 +353,10 @@ def send_article(article):
                         EscholArticle.objects.create(article=article, ark=di["id"])
                 else:
                     msg = data["errors"]
+                    logger.error("ERROR sending Article {} to eScholarship: {}".format(article.pk, data["errors"]))
             except json.decoder.JSONDecodeError:
-                msg = r.text
+                msg = "An unexpected error occured when sending Article {} to eScholarship".format(article.pk)
+                logger.error("ERROR sending Article {} to eScholarship: {}".format(article.pk, r.text))
         else:
             msg = str(item)
     except Exception as e:
