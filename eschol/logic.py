@@ -11,6 +11,7 @@ from subprocess import Popen, PIPE
 from uuid import uuid4
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
+from core.files import PDF_MIMETYPES
 
 from utils.logger import get_logger
 logger = get_logger(__name__)
@@ -237,7 +238,8 @@ def get_article_json(article, unit):
         item.update({"externalLinks": [rg.remote_file]})
     elif rg.file:
         if rg.file.mime_type == 'application/xml' or rg.file.mime_type == 'text/xml':
-            print(settings.DEFAULT_XSL_FILE_LABEL)
+            # if the galley doesn't have an xsl file it will cause an error when rendering
+            # so set it to the default
             if not rg.xsl_file:
                 rg.xsl_file = XSLFile.objects.get(label=settings.DEFAULT_XSL_FILE_LABEL)
                 rg.save()
@@ -271,12 +273,23 @@ def get_article_json(article, unit):
                                                 article,
                                                 filename="{}.xml".format(short_ark),
                                                 title="[XML] {}".format(article.title)))
+
+            supp_pdf = None
             pdfs = article.pdfs
             if len(pdfs) > 0:
-                suppFiles.append(get_supp_file_json(pdfs[0].file,
+                supp_pdf = pdfs[0].file
+            else:
+                # if there are no galleys with type "pdf" look for galleys that have files with pdf mime types
+                pdfs = article.galley_set.filter(type="", file__mime_type__in=PDF_MIMETYPES)
+                if len(pdfs) == 1:
+                    supp_pdf = pdfs[0].file
+
+            if supp_pdf:
+                suppFiles.append(get_supp_file_json(supp_pdf,
                                                     article,
                                                     filename="{}.pdf".format(short_ark),
                                                     title="[PDF] {}".format(article.title)))
+
             for imgf in rg.images.all():
                 img_files.append({"file": imgf.original_filename, "fetchLink": imgf.remote_url if imgf.is_remote else get_file_url(article, imgf.pk)})
             if rg.css_file:
