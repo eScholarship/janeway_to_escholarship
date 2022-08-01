@@ -201,18 +201,18 @@ def get_article_json(article, unit):
             item.update({"issueCoverCaption": issue.short_description})
 
     authors = []
-    for a in article.authors.all():
-        parts = {"fname": a.first_name,
-                "lname": a.last_name,
-                "institution": a.institution}
-        if a.middle_name:
-            parts.update({"mname": a.middle_name})
+    for a in article.articleauthororder_set.all():
+        parts = {"fname": a.author.first_name,
+                "lname": a.author.last_name,
+                "institution": a.author.institution}
+        if a.author.middle_name:
+            parts.update({"mname": a.author.middle_name})
         author = {
-            "email": a.email,
+            "email": a.author.email,
             "nameParts": parts
         }
-        if a.orcid:
-            author.update({"orcid": a.orcid})
+        if a.author.orcid:
+            author.update({"orcid": a.author.orcid})
         authors.append(author)
     
     if len(authors) > 0:
