@@ -17,6 +17,8 @@ class EscholArticle(models.Model):
     article = models.ForeignKey(Article)
     date_published = models.DateTimeField(auto_now=True)
     ark = models.CharField(max_length=50)
+    is_doi_registered = models.BooleanField(default=False)
+    doi_result_text = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return "{}: {}".format(str(self.article), self.ark)

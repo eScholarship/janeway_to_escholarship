@@ -13,9 +13,10 @@ from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
 from core.files import PDF_MIMETYPES
 
+from plugins.ezid.logic import register_journal_doi, update_journal_doi
+
 from utils.logger import get_logger
 logger = get_logger(__name__)
-
 
 valid_rights = ["https://creativecommons.org/licenses/by/4.0/",
                 "https://creativecommons.org/licenses/by-sa/4.0/",
@@ -369,7 +370,19 @@ def send_article(article):
                     if epub:
                         epub.save()
                     else:
-                        EscholArticle.objects.create(article=article, ark=di["id"])
+                        epub = EscholArticle.objects.create(article=article, ark=di["id"])
+                    article.is_remote = True
+                    article.remote_url = epub.get_eschol_url()
+                    article.save()
+                    if not epub.is_doi_registered:
+                        success, result_text = register_journal_doi(article=article)
+                        epub.is_doi_registered = success
+                        epub.doi_result_text = result_text
+                        epub.save()
+                    else:
+                        success, result_text = update_journal_doi(article=article)
+                        epub.doi_result_text = result_text
+                        epub.save()
                 else:
                     msg = data["errors"]
                     logger.error("ERROR sending Article {} to eScholarship: {}".format(article.pk, data["errors"]))
@@ -408,3 +421,4 @@ def issue_to_eschol(**options):
 def article_to_eschol(**options):
     article = options.get("article")
     return [send_article(article)]
+
