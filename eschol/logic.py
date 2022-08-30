@@ -14,6 +14,7 @@ from django.utils.encoding import force_bytes
 from core.files import PDF_MIMETYPES
 
 from plugins.ezid.logic import register_journal_doi, update_journal_doi
+from identifiers import logic as id_logic
 
 from utils.logger import get_logger
 logger = get_logger(__name__)
@@ -352,8 +353,12 @@ def get_unit(journal):
     return unit
 
 def send_article(article):
+
     unit = get_unit(article.journal)
     try:
+        # make sure we've assigned a DOI
+        if not article.get_doi():
+            id = id_logic.generate_crossref_doi_with_pattern(article)
         (item, epub) = get_article_json(article, unit)
         if epub:
             item["id"] = epub.ark
