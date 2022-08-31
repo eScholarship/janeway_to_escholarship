@@ -23,6 +23,7 @@
                 <th>Title</th>
                 <th>Date Published</th>
                 <th>ARK</th>
+                <th>DOI</th>
                 <th></th>
             </tr>
             </thead>
@@ -38,6 +39,15 @@
                     {% endif %}
                     <td>{% if ea %}{{ ea.date_published }}{% else %} (not published){% endif %}</td>
                     <td>{% if ea %}{{ ea.ark }}{% endif %}</td>
+                    <td>
+                        {% if ea and ea.is_doi_registered %}
+                            {{ article.get_doi }}
+                        {% elif ea.doi_result_text %}
+                            {{ eq.doi_result_text }}
+                        {% else %}
+                            (not registered)
+                        {% endif %}
+                    </td>
                     <td><a href="{% url 'eschol_publish_article' article.pk %}">Publish</a></td>
                 </tr>
                 {% endwith %}
