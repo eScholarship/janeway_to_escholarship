@@ -189,16 +189,16 @@ def get_article_json(article, unit):
     issue = article.issue
     if issue:
         if SectionOrdering.objects.filter(issue=issue, section=article.section).exists():
-            sorder = SectionOrdering.objects.get(issue=issue, section=article.section).order
+            sorder = SectionOrdering.objects.get(issue=issue, section=article.section).order + 1
         else:
             sorder = "1"
-        aorder = ArticleOrdering.objects.get(issue=issue, section=article.section, article=article)
+        aorder = ArticleOrdering.objects.get(issue=issue, section=article.section, article=article).order + 1
         item.update({"volume": str(issue.volume), 
                     "issue": issue.issue,
                     "issueTitle": issue.issue_title,
                     "issueDate": issue.date.strftime("%Y-%m-%d"),
                     "issueDescription": issue.issue_description,
-                    'orderInSection': int(sorder + str(aorder.order).zfill(4))})
+                    'orderInSection': int(sorder + str(aorder).zfill(4))})
         if issue.short_description:
             item.update({"issueCoverCaption": issue.short_description})
 
