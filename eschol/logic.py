@@ -127,13 +127,16 @@ def convertDataAvailability(d):
     return None
 
 def get_article_json(article, unit):
+    sourceName = "janeway"
     if EscholArticle.objects.filter(article=article).exists():
         epub = EscholArticle.objects.get(article=article)
+        if epub.source_name:
+            sourceName = epub.source_name
     else:
         epub = False
 
     item = {
-        "sourceName": "janeway",
+        "sourceName": sourceName,
         "sourceID": str(article.pk),
         "submitterEmail": article.owner.email,
         "title": article.title,
