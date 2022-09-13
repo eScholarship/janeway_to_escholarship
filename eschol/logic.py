@@ -13,7 +13,6 @@ from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
 from core.files import PDF_MIMETYPES
 
-from plugins.ezid.logic import register_journal_doi, update_journal_doi
 from identifiers import logic as id_logic
 
 from utils.logger import get_logger
@@ -355,8 +354,23 @@ def get_unit(journal):
         unit = journal.code
     return unit
 
-def send_article(article):
+def register_doi(article, epub):
+    try:
+        from plugins.ezid.logic import register_journal_doi, update_journal_doi
+        if not epub.is_doi_registered:
+            success, result_text = register_journal_doi(article=article)
+            epub.is_doi_registered = success
+            epub.doi_result_text = result_text
+            epub.save()
+        else:
+            success, result_text = update_journal_doi(article=article)
+            epub.doi_result_text = result_text
+            epub.save()
+    except ImportError or ModuleNotFoundError:
+        # If we don't find the ezid plugin just don't register.  it's fine.
+        pass
 
+def send_article(article):
     unit = get_unit(article.journal)
     try:
         # make sure we've assigned a DOI
@@ -382,15 +396,7 @@ def send_article(article):
                     article.is_remote = True
                     article.remote_url = epub.get_eschol_url()
                     article.save()
-                    if not epub.is_doi_registered:
-                        success, result_text = register_journal_doi(article=article)
-                        epub.is_doi_registered = success
-                        epub.doi_result_text = result_text
-                        epub.save()
-                    else:
-                        success, result_text = update_journal_doi(article=article)
-                        epub.doi_result_text = result_text
-                        epub.save()
+                    register_doi(article, epub)
                 else:
                     msg = data["errors"]
                     logger.error("ERROR sending Article {} to eScholarship: {}".format(article.pk, data["errors"]))
