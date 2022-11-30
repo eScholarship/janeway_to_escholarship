@@ -98,9 +98,8 @@ def get_provisional_id(article):
 def get_file_url(article, fid):
     token = AccessToken.objects.create(article_id=article.pk, file_id=fid)
     token.generate_token()
-    return "{}{}?access={}".format(article.journal.site_url(),
-                                    reverse('access_article_file', kwargs={"article_id": article.pk, "file_id": fid}),
-                                    token.token)
+    return "{}?access={}".format(article.journal.site_url(path=reverse('access_article_file', kwargs={"article_id": article.pk, "file_id": fid})),
+                                   token.token)
 
 def get_supp_file_json(f, article, filename=None, title=None):
     x = {"file": filename if filename else f.original_filename,
