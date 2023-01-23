@@ -136,6 +136,7 @@ def get_article_json(article, unit):
     item = {
         "sourceName": sourceName,
         "sourceID": str(article.pk),
+        "sourceFeedLink": article.journal.press.domain,
         "submitterEmail": article.owner.email,
         "title": article.title,
         "type": "ARTICLE",
@@ -363,6 +364,7 @@ def register_doi(article, epub):
             epub.save()
         else:
             success, result_text = update_journal_doi(article=article)
+            logger.info(result_text)
             epub.doi_result_text = result_text
             epub.save()
     except ImportError or ModuleNotFoundError:
