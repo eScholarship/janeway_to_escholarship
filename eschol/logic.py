@@ -136,7 +136,7 @@ def get_article_json(article, unit):
     item = {
         "sourceName": sourceName,
         "sourceID": str(article.pk),
-        "sourceFeedLink": article.journal.press.domain,
+        "sourceURL": article.journal.press.domain,
         "submitterEmail": article.owner.email,
         "title": article.title,
         "type": "ARTICLE",
