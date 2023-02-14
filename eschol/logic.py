@@ -159,10 +159,10 @@ def get_article_json(article, unit):
         item["customCitation"] = article.custom_how_to_cite
 
     if article.first_page:
-        item["fpage"] = article.first_page
+        item["fpage"] = str(article.first_page)
 
     if article.last_page:
-        item["lpage"] = article.last_page
+        item["lpage"] = str(article.last_page)
 
     keywords = list(filter(None, article.keywords.all().values_list('word', flat=True)))
     if len(keywords) > 0:
