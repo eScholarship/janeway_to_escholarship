@@ -1,5 +1,4 @@
 from django.core.management.base import BaseCommand
-from django.conf import settings
 
 import json, csv
 
@@ -9,6 +8,9 @@ from django.contrib.contenttypes.models import ContentType
 
 from plugins.eschol.models import EscholArticle
 from identifiers.models import Identifier
+
+# The following query to the jschol db will create the expected input file
+# "SELECT arks.id, arks.source, external_id, items.attrs->>'$.doi' as doi FROM arks LEFT JOIN unit_items ON arks.id = unit_items.item_id LEFT JOIN items ON items.id = arks.id  WHERE unit_id = '<journal-code>';"
 
 class Command(BaseCommand):
     """Adds EscholArticle objects with arks for items imported from OJS for a given journal"""
@@ -72,7 +74,5 @@ class Command(BaseCommand):
                         e.save()
                         print(f'Added doi {doi}')
                 else:
-                    print(f'ERROR Article {a.pk}: OJS id not found in export')
-                    
-
-# mysql --defaults-extra-file=~/.passwords/jschol_ro_pw.mysql -s -e "SELECT arks.id, arks.source, external_id, items.attrs->>'$.doi' as doi FROM arks LEFT JOIN unit_items ON arks.id = unit_items.item_id LEFT JOIN items ON items.id = arks.id  WHERE unit_id = 'uciem_cpcem';"
+                    if a.stage == 'Published':
+                        print(f'ERROR Published article {a.pk}: OJS id not found in export')
