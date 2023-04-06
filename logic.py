@@ -14,6 +14,7 @@ from django.utils.encoding import force_bytes
 from core.files import PDF_MIMETYPES
 
 from identifiers import logic as id_logic
+from utils import logic as utils_logic
 
 from utils.logger import get_logger
 logger = get_logger(__name__)
@@ -417,7 +418,13 @@ def issue_to_eschol(**options):
     msgs = []
 
     if issue.cover_image and issue.cover_image.url:
-        cover_url = "{}{}".format(issue.journal.site_url(), issue.cover_image.url)
+        # media are hosted at ://domain/media not ://domain/site_code/media
+        # this is the most consistent way I can find to generate this url
+        j = issue.journal
+        cover_url = utils_logic.build_url(netloc=j.press.domain,
+                                          scheme=j.press.SCHEMES[j.press.is_secure],
+                                          port=None,
+                                          path=issue.cover_image.url)
         variables = {"input": {"journal": unit,
                                "issue": int(issue.issue),
                                "volume": issue.volume,
