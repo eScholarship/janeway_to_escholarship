@@ -359,15 +359,21 @@ def register_doi(article, epub):
     try:
         from plugins.ezid.logic import register_journal_doi, update_journal_doi
         if not epub.is_doi_registered:
-            success, result_text = register_journal_doi(article=article)
-            epub.is_doi_registered = success
-            epub.doi_result_text = result_text
-            epub.save()
+            enabled, success, result_text = register_journal_doi(article=article)
+            if enabled:
+                epub.is_doi_registered = success
+                epub.doi_result_text = result_text
+                epub.save()
+            else:
+                logger.info(f'EZID disabled for journal: {article.journal}')
         else:
-            success, result_text = update_journal_doi(article=article)
-            logger.info(result_text)
-            epub.doi_result_text = result_text
-            epub.save()
+            enabled, success, result_text = update_journal_doi(article=article)
+            if enabled:
+                logger.info(result_text)
+                epub.doi_result_text = result_text
+                epub.save()
+            else:
+                logger.info(f'EZID disabled for journal: {article.journal}')
     except ImportError or ModuleNotFoundError:
         # If we don't find the ezid plugin just don't register.  it's fine.
         pass
