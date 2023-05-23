@@ -329,6 +329,10 @@ def get_article_json(article, unit):
                 "subScheme": i.id_type}
         local_ids.append(x)
 
+    local_ids.append({"id": f'janeway_{article.pk}',
+                      "scheme": "OTHER_ID",
+                      "subScheme": "other"})
+
     if len(local_ids) > 0:
         item.update({"localIDs": local_ids})
 
