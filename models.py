@@ -14,7 +14,7 @@ class JournalUnit(models.Model):
         return "{}: {}".format(self.journal, self.unit)
 
 class EscholArticle(models.Model):
-    article = models.ForeignKey(Article)
+    article = models.ForeignKey(Article, on_delete=models.CASCADE)
     date_published = models.DateTimeField(auto_now=True)
     ark = models.CharField(max_length=50)
     is_doi_registered = models.BooleanField(default=False)
