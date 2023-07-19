@@ -2,7 +2,7 @@ from django.contrib import admin
 from plugins.eschol.models import *
 
 class JournalUnitAdmin(admin.ModelAdmin):
-    fields = ['journal', 'unit', 'default_css_url']
+    fields = ['journal', 'unit', 'default_css_url', 'ezid_template']
 
 class EscholArticleAdmin(admin.ModelAdmin):
     pass
