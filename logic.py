@@ -135,26 +135,34 @@ def get_article_json(article, unit):
         epub = False
 
     item = {
-        "sourceName": sourceName,
-        "sourceID": str(article.pk),
+        "sourceName": sourceName, # required
+        "sourceID": str(article.pk), # required
         "sourceURL": article.journal.press.domain,
-        "submitterEmail": article.owner.email,
-        "title": article.title,
-        "type": "ARTICLE",
-        "published": article.date_published.strftime("%Y-%m-%d"),
-        "isPeerReviewed": article.peer_reviewed,
+        "submitterEmail": article.owner.email, # required
+        "title": article.title, # required
+        "type": "ARTICLE", # required
+        "published": article.date_published.strftime("%Y-%m-%d"), # required
+        "isPeerReviewed": article.peer_reviewed, # required
         "contentVersion": "PUBLISHER_VERSION",
-        "abstract": article.abstract,
         "journal": article.journal.name,
-        "sectionHeader": article.section.plural if article.section.plural and article.section.published_articles().count() > 1 else article.section.name,
-        "issn": article.journal.issn,
-        "units": [unit],
-        "language": article.language,
-        "pubRelation": "EXTERNAL_PUB",
-        "dateSubmitted": article.date_submitted.strftime("%Y-%m-%d"),
-        "dateAccepted": article.date_accepted.strftime("%Y-%m-%d"),
-        "datePublished": article.date_published.strftime("%Y-%m-%d")
+        "units": [unit], # required
+        "pubRelation": "EXTERNAL_PUB"
     }
+
+    if article.abstract:
+        item["abstract"] = article.abstract
+
+    if article.journal.issn and not article.journal.issn == '0000-0000':
+        item["issn"] = article.journal.issn
+
+    if article.date_submitted:
+        item["dateSubmitted"] = article.date_submitted.strftime("%Y-%m-%d")
+
+    if article.date_accepted:
+        item["dateAccepted"] = article.date_accepted.strftime("%Y-%m-%d")
+
+    if article.date_published:
+        item["datePublished"] = article.date_published.strftime("%Y-%m-%d")
 
     if article.custom_how_to_cite:
         item["customCitation"] = article.custom_how_to_cite
@@ -164,6 +172,16 @@ def get_article_json(article, unit):
 
     if article.last_page:
         item["lpage"] = str(article.last_page)
+
+    if article.language:
+        item["language"] = article.language
+
+    if article.section:
+        if article.section.plural and article.section.published_articles().count() > 1:
+            h = article.section.plural
+        else:
+            h = article.section.name
+        item["sectionHeader"] =  h
 
     keywords = list(filter(None, article.keywords.all().values_list('word', flat=True)))
     if len(keywords) > 0:
