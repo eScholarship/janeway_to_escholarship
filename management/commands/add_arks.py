@@ -109,6 +109,11 @@ class Command(BaseCommand):
                         print(f'Got eschol article {ark}')
 
                     if doi and not doi == 'NULL':
+                        # If we have an DOI delete any existing DOIs
+                        # We assume the DOI coming from the jschol export is the most recent
+                        if Identifier.objects.filter(article=a, id_type='doi').exists():
+                            print(f'Deleting old DOIs')
+                            Identifier.objects.filter(article=a, id_type='doi').delete()
                         doi_options = {
                             'id_type': 'doi',
                             'identifier': doi,
