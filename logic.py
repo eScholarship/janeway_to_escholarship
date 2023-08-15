@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.urls import reverse
+from django.contrib import messages
 
 from journal.models import ArticleOrdering, SectionOrdering
 from core.models import File, XSLFile
@@ -111,7 +112,7 @@ def get_supp_file_json(f, article, filename=None, title=None):
         x.update({"title": title})
     return x
 
-def convertDataAvailability(d):
+def convert_data_availability(d):
     types = {"Public repository": "publicRepo",
             "Public repository: available after publication": "publicRepoLater",
             "Supplemental files": "suppFiles",
@@ -124,6 +125,72 @@ def convertDataAvailability(d):
         if f.answer in types:
             return types.get(f.answer, None)
     return None
+
+def xml_galley_to_html(article, galley, item):
+    item = {}
+    suppFiles = []
+    img_files = []
+    # if the galley doesn't have an xsl file it will cause an error when rendering
+    # so set it to the default
+    if not galley.xsl_file:
+        galley.xsl_file = XSLFile.objects.get(label=settings.DEFAULT_XSL_FILE_LABEL)
+        galley.save()
+
+    r = render_to_string("eschol/escholarship.html", {'article_content': galley.render(recover=True),
+                                                      'default_css_url': get_default_css_url(article.journal),
+                                                      'css_file': galley.css_file})
+    s = force_bytes(r,  encoding="utf-8")
+    p = Popen(['xmllint', '--html', '--xmlout', '--format', '--encode', 'utf-8', '/dev/stdin'], stdin=PIPE, stdout=PIPE)
+    (output, error_output) = p.communicate(s)
+    if not epub:
+        ark = get_provisional_id(article)
+        epub = EscholArticle.objects.create(article=article, ark=ark)
+    else:
+        ark = epub.ark
+
+    short_ark = ark.split("/")[-1]
+    html_filename = "{}.html".format(short_ark)
+    html_files = File.objects.filter(original_filename=html_filename, article_id=article.id)
+    if html_files.exists():
+        html_files.delete()
+    html_file = save_article_file(output, article, html_filename, "text/html",
+                                  article.owner, label="Generated HTML",
+                                  description="HTML file generated from JATS for eschol")
+    item.update({"id": ark,
+                 "contentLink": get_file_url(article, html_file.pk),
+                 "contentFileName": html_file.original_filename,})
+
+    # add xml and pdf to suppFiles
+    suppFiles.append(get_supp_file_json(galley.file,
+                                        article,
+                                        filename="{}.xml".format(short_ark),
+                                        title="[XML] {}".format(article.title)))
+
+    supp_pdf = None
+    pdfs = article.pdfs
+    if len(pdfs) > 0:
+        supp_pdf = pdfs[0].file
+    else:
+        # if there are no galleys with type "pdf" look for galleys that have files with pdf mime types
+        pdfs = article.galley_set.filter(type="", file__mime_type__in=PDF_MIMETYPES)
+        if len(pdfs) == 1:
+            supp_pdf = pdfs[0].file
+
+    if supp_pdf:
+        suppFiles.append(get_supp_file_json(supp_pdf,
+                                            article,
+                                            filename="{}.pdf".format(short_ark),
+                                            title="[PDF] {}".format(article.title)))
+
+    for imgf in galley.images.all():
+        img_files.append({"file": imgf.original_filename, "fetchLink": imgf.remote_url if imgf.is_remote else get_file_url(article, imgf.pk)})
+
+    if galley.css_file:
+        css = galley.css_file
+        item.update({"cssFiles": {"file": css.original_filename,
+                                  "fetchLink": css.remote_url if css.is_remote else get_file_url(article, css.pk)}})
+
+    return item, suppFiles, img_files
 
 def get_article_json(article, unit):
     sourceName = "janeway"
@@ -199,7 +266,7 @@ def get_article_json(article, unit):
 
     data_avail_set = article.fieldanswer_set.filter(field__name="Data Availability")
     if data_avail_set.exists():
-        data_avail = convertDataAvailability(data_avail_set)
+        data_avail = convert_data_availability(data_avail_set)
         if data_avail:
             item["dataAvailability"] = data_avail
             if item["dataAvailability"] == "publicRepo":
@@ -253,85 +320,31 @@ def get_article_json(article, unit):
         item["grants"] = funders
 
     rg = article.get_render_galley
-    if not rg:
+    if not rg and article.galley_set.exists():
         rg = article.galley_set.filter(file__mime_type="application/pdf")\
                     .order_by("sequence",)[0]
 
-    suppFiles = []
+    supp_files = []
     img_files = []
-    if rg.is_remote:
-        item.update({"externalLinks": [rg.remote_file]})
-    elif rg.file:
-        if rg.file.mime_type == 'application/xml' or rg.file.mime_type == 'text/xml':
-            # if the galley doesn't have an xsl file it will cause an error when rendering
-            # so set it to the default
-            if not rg.xsl_file:
-                rg.xsl_file = XSLFile.objects.get(label=settings.DEFAULT_XSL_FILE_LABEL)
-                rg.save()
-
-            r = render_to_string("eschol/escholarship.html", {'article_content': rg.render(recover=True),
-                                                              'default_css_url': get_default_css_url(article.journal),
-                                                              'css_file': rg.css_file})
-            s = force_bytes(r,  encoding="utf-8")
-            p = Popen(['xmllint', '--html', '--xmlout', '--format', '--encode', 'utf-8', '/dev/stdin'], stdin=PIPE, stdout=PIPE)
-            (output, error_output) = p.communicate(s)
-            if not epub:
-                ark = get_provisional_id(article)
-                epub = EscholArticle.objects.create(article=article, ark=ark)
+    # If there's no galley just leave it out
+    if rg:
+        if rg.is_remote:
+            item.update({"externalLinks": [rg.remote_file]})
+        elif rg.file:
+            if rg.file.mime_type == 'application/xml' or rg.file.mime_type == 'text/xml':
+                fields, supp_files, img_files = xml_galley_to_html(article, rg)
+                item.update(fields)
             else:
-                ark = epub.ark
-            short_ark = ark.split("/")[-1]
-            html_filename = "{}.html".format(short_ark)
-            html_files = File.objects.filter(original_filename=html_filename, article_id=article.id)
-            if html_files.exists():
-                html_files.delete()
-            html_file = save_article_file(output, article, html_filename, "text/html", 
-                                          article.owner, label="Generated HTML", 
-                                          description="HTML file generated from JATS for eschol")
-            item.update({
-                "id": ark,
-                "contentLink": get_file_url(article, html_file.pk),
-                "contentFileName": html_file.original_filename,
-            })
-            # add xml and pdf to suppFiles
-            suppFiles.append(get_supp_file_json(rg.file,
-                                                article,
-                                                filename="{}.xml".format(short_ark),
-                                                title="[XML] {}".format(article.title)))
-
-            supp_pdf = None
-            pdfs = article.pdfs
-            if len(pdfs) > 0:
-                supp_pdf = pdfs[0].file
-            else:
-                # if there are no galleys with type "pdf" look for galleys that have files with pdf mime types
-                pdfs = article.galley_set.filter(type="", file__mime_type__in=PDF_MIMETYPES)
-                if len(pdfs) == 1:
-                    supp_pdf = pdfs[0].file
-
-            if supp_pdf:
-                suppFiles.append(get_supp_file_json(supp_pdf,
-                                                    article,
-                                                    filename="{}.pdf".format(short_ark),
-                                                    title="[PDF] {}".format(article.title)))
-
-            for imgf in rg.images.all():
-                img_files.append({"file": imgf.original_filename, "fetchLink": imgf.remote_url if imgf.is_remote else get_file_url(article, imgf.pk)})
-            if rg.css_file:
-                css = rg.css_file
-                item.update({"cssFiles": {"file": css.original_filename,
-                                          "fetchLink": css.remote_url if css.is_remote else get_file_url(article, css.pk)}})
-        else:
-            item.update({
-                "contentLink": get_file_url(article, rg.file.pk),
-                "contentFileName": rg.file.original_filename,
-            })
+                item.update({
+                    "contentLink": get_file_url(article, rg.file.pk),
+                    "contentFileName": rg.file.original_filename,
+                })
         
     for f in article.supplementary_files.all():
-        suppFiles.append(get_supp_file_json(f.file, article))
+        supp_files.append(get_supp_file_json(f.file, article))
 
-    if len(suppFiles):
-        item.update({"suppFiles": suppFiles})
+    if len(supp_files):
+        item.update({"suppFiles": supp_files})
 
     if len(img_files):
         item.update({"imgFiles": img_files})
@@ -377,7 +390,7 @@ def get_unit(journal):
         unit = journal.code
     return unit
 
-def register_doi(article, epub):
+def register_doi(article, epub, request=None):
     try:
         from plugins.ezid.logic import register_journal_doi, update_journal_doi
         if not epub.is_doi_registered:
@@ -399,53 +412,70 @@ def register_doi(article, epub):
     except ImportError or ModuleNotFoundError:
         # If we don't find the ezid plugin just don't register.  it's fine.
         pass
-
-def send_article(article):
-    unit = get_unit(article.journal)
-    try:
-        # make sure we've assigned a DOI
-        if not article.get_doi():
-            id = id_logic.generate_crossref_doi_with_pattern(article)
-        (item, epub) = get_article_json(article, unit)
-        if epub:
-            item["id"] = epub.ark
-
-        if hasattr(settings, 'ESCHOL_API_URL'):
-            try:
-                variables = {"item": item}
-                r = send_to_eschol(deposit_query, variables)
-
-                data = json.loads(r.text)
-                if "data" in data:
-                    di = data["data"]["depositItem"]
-                    msg = "{}: {}".format(di["message"], di["id"])
-                    if epub:
-                        epub.save()
-                    else:
-                        epub = EscholArticle.objects.create(article=article, ark=di["id"])
-                    article.is_remote = True
-                    article.remote_url = epub.get_eschol_url()
-                    article.save()
-                    register_doi(article, epub)
-                else:
-                    msg = data["errors"]
-                    logger.error("ERROR sending Article {} to eScholarship: {}".format(article.pk, data["errors"]))
-            except json.decoder.JSONDecodeError:
-                msg = "An unexpected error occured when sending Article {} to eScholarship".format(article.pk)
-                logger.error("ERROR sending Article {} to eScholarship: {}".format(article.pk, r.text))
-        else:
-            msg = str(item)
     except Exception as e:
-        msg = str(e)
+        # if we get another type of error log it, return it
+        msg = f'An unexpected error occured when registering DOI for {article}: {e}'
+        logger.error(e, exc_info=True)
+        if request: messages.error(request, msg)
 
-    return msg
+def send_article(article, is_configured=False, request=None):
+    unit = get_unit(article.journal)
 
-def issue_to_eschol(**options):
-    issue = options.get("issue")
-    unit = get_unit(issue.journal)
-    msgs = []
+    if not article.issue:
+        msg = f'{article} published without issue'
+        logger.error(msg)
+        if request: messages.error(request, msg)
+        return None, msg
 
+    if not article.owner:
+        msg = f'{article} published without owner'
+        logger.error(msg)
+        if request: messages.error(request, msg)
+        return None, msg
+
+    # make sure we've assigned a DOI
+    if not article.get_doi():
+        id = id_logic.generate_crossref_doi_with_pattern(article)
+
+    item, epub = get_article_json(article, unit)
+    if epub:
+        item["id"] = epub.ark
+
+    variables = {"item": item}
+    if is_configured:
+        r = send_to_eschol(deposit_query, variables)
+
+        try:
+            data = json.loads(r.text)
+            if "data" in data:
+                di = data["data"]["depositItem"]
+                msg = "{}: {}".format(di["message"], di["id"])
+                logger.info(msg)
+                if request: messages.success(request, msg)
+                if epub:
+                    epub.save()
+                else:
+                    epub = EscholArticle.objects.create(article=article, ark=di["id"])
+                article.is_remote = True
+                article.remote_url = epub.get_eschol_url()
+                article.save()
+                register_doi(article, epub, request)
+            else:
+                error_msg = f'ERROR sending Article {article.pk} to eScholarship: {data["errors"]}'
+                logger.error(error_msg)
+                if request: messages.error(request, error_msg)
+                return None, error_msg
+        except json.decoder.JSONDecodeError:
+            logger.error(r.text)
+            return None, f"An unexpected API error occured sending {article} to eScholarship"
+    else:
+        logger.debug(f'Escholarhip Deposit for Article {article.pk}: {variables}')
+
+    return epub, None
+
+def send_issue_meta(issue, is_configured=False):
     if issue.cover_image and issue.cover_image.url:
+        unit = get_unit(issue.journal)
         # media are hosted at ://domain/media not ://domain/site_code/media
         # this is the most consistent way I can find to generate this url
         j = issue.journal
@@ -458,17 +488,62 @@ def issue_to_eschol(**options):
                                "volume": issue.volume,
                                "coverImageURL": cover_url}}
 
-        if hasattr(settings, 'ESCHOL_API_URL'):
+        if is_configured:
             r = send_to_eschol(issue_query, variables)
-            msgs.append(r.text)
+            logger.info(r.text)
+            if r.text == "Cover Image uploaded":
+                return True, None
+            else:
+                return False, r.text
         else:
-            msgs.append(str(variables))
+            msg = f'Escholarship deposit {issue}: {variables}'
+            logger.debug(msg)
+            return True, msg
+    return True, "No cover image"
 
-    for a in issue.get_sorted_articles():
-        msgs.append(send_article(a))
-    return msgs
+def is_configured():
+    if hasattr(settings, 'ESCHOL_API_URL'):
+        return True
+    else:
+        logger.info("Escholarship API not configured.")
+        return False
+
+def issue_to_eschol(**options):
+    request = options.get("request")
+    issue = options.get("issue")
+    configured = is_configured()
+    objs = []
+    errors = []
+
+    try:
+        success, msg = send_issue_meta(issue, configured)
+        if not success:
+            errors.append(msg)
+
+        for a in issue.get_sorted_articles():
+            obj, error = send_article(a, configured, request)
+            if obj:
+                objs.append(obj)
+            else:
+                errors.append(error)
+    except Exception as e:
+        msg = f'An unexpected error occured when sending {issue} to eScholarship: {e}'
+        logger.error(e, exc_info=True)
+        if request: messages.error(request, msg)
+        errors.append(msg)
+
+    return objs, errors
 
 def article_to_eschol(**options):
+    request = options.get('request')
     article = options.get("article")
-    return [send_article(article)]
+    configured = is_configured()
 
+    try:
+        return send_article(article, configured, request)
+    except Exception as e:
+        msg = f'An unexpected error occured when sending {article} to eScholarship: {e}'
+        logger.error(e, exc_info=True)
+        if request: messages.error(request, msg)
+
+    return None, msg
