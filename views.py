@@ -19,10 +19,11 @@ from .logic import issue_to_eschol, article_to_eschol
 def publish_issue(request, issue_id):
     template = 'eschol/published.html'
     issue = get_object_or_404(Issue, pk=issue_id)
-    msgs = issue_to_eschol(issue=issue)
+    epubs, errors = issue_to_eschol(request=request, issue=issue)
     context = {
         'obj': issue,
-        'messages': msgs,
+        'objs': epubs,
+        'errors': errors,
         'issue': issue,
         'obj_name': "Issue"
     }
@@ -31,10 +32,11 @@ def publish_issue(request, issue_id):
 def publish_article(request, article_id):
     template = 'eschol/published.html'
     article = get_object_or_404(Article, pk=article_id)
-    msgs = article_to_eschol(article=article)
+    epub, error = article_to_eschol(request=request, article=article)
     context = {
         'obj': article,
-        'messages': msgs,
+        'objs': [epub] if epub else [],
+        'errors': [error] if error else [],
         'issue': article.issue,
         'obj_name': "Article"
     }
