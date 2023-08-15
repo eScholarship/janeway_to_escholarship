@@ -26,3 +26,11 @@ There is a *very* small group of tests written as standard django test cases. Th
 ```
 manage.py test eschol
 ```
+
+## Dev env setup
+
+If you want to test this plugin from a local janeway dev environment to a local escholAPI instance you should set:
+
+```
+ESCHOL_API_URL = 'http://host.docker.internal:4001/graphql'
+```
