@@ -281,14 +281,16 @@ def get_article_json(article, unit):
         else:
             sorder = 1
         aorder = ArticleOrdering.objects.get(issue=issue, section=article.section, article=article).order + 1
-        item.update({"volume": str(issue.volume), 
-                    "issue": issue.issue,
-                    "issueTitle": issue.issue_title,
-                    "issueDate": issue.date.strftime("%Y-%m-%d"),
-                    "issueDescription": issue.issue_description,
-                    'orderInSection': int(str(sorder) + str(aorder).zfill(4))})
+        issue_vars = {"volume": str(issue.volume),
+                      "issue": str(issue.issue),
+                      "issueTitle": issue.issue_title,
+                      "issueDate": issue.date.strftime("%Y-%m-%d"),
+                      "orderInSection": int(str(sorder) + str(aorder).zfill(4))}
+        if issue.issue_description:
+            issue_vars["issueDescription"] = issue.issue_description,
         if issue.short_description:
-            item.update({"issueCoverCaption": issue.short_description})
+            issue_vars["issueCoverCaption"] = issue.short_description
+        item.update(issue_vars)
 
     authors = []
     for fa in article.frozen_authors().all():
@@ -413,7 +415,7 @@ def register_doi(article, epub, request=None):
         # If we don't find the ezid plugin just don't register.  it's fine.
         pass
     except Exception as e:
-        # if we get another type of error log it, return it
+        # if we get another type of error log it
         msg = f'An unexpected error occured when registering DOI for {article}: {e}'
         logger.error(e, exc_info=True)
         if request: messages.error(request, msg)
