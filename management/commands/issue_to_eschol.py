@@ -18,4 +18,16 @@ class Command(BaseCommand):
         issue_id = options.get("issue_id")
         issue = Issue.objects.get(id=issue_id)
 
-        pprint.pprint(logic.issue_to_eschol(issue=issue))
+        epubs, errors = logic.issue_to_eschol(issue=issue)
+        if len(errors):
+            print(f'Errors occured sending issue {issue.pk} to eScholarship:')
+            for e in errors:
+                print(e)
+        if len(epubs):
+            print(f'Deposited issue {issue.pk} to eScholarship')
+            for epub in epubs:
+                print(f'Deposited article {epub.article.pk} to {epub.ark}')
+                if epub.is_doi_registered:
+                    print(f'\tDOI registered {epub.article.get_doi()}')
+                else:
+                    print(f'\tDOI not registered: {epub.doi_result_text}')
