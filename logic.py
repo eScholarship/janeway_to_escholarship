@@ -316,7 +316,7 @@ def get_article_json(article, unit):
     for f in article.funders.all():
         funders.append({
             "name": f.name,
-            "reference": f.funding_id
+            "reference": f.fundref_id
         })
     if len(funders) > 0:
         item["grants"] = funders
