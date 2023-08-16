@@ -79,4 +79,15 @@ class TestImportArks(TestCase):
         i = Identifier.objects.get(article=self.article)
         self.assertEqual(i.identifier, "10.00000/C40003")
 
+    def test_existing_doi(self):
+        self.create_log_entry(LOG_ENTRY1)
+        Identifier.objects.create(article=self.article, id_type='doi', identifier="10.00000/C40004")
+        self.assertEqual(Identifier.objects.count(), 1)
+        i = Identifier.objects.get(article=self.article)
+        self.assertEqual(i.identifier, "10.00000/C40004")
+        out = self.call_command(self.journal.code, self.get_file_path("test1.tsv"))
+        self.assertEqual(Identifier.objects.count(), 1)
+        i = Identifier.objects.get(article=self.article)
+        self.assertEqual(i.identifier, "10.00000/C40001")
+
 
