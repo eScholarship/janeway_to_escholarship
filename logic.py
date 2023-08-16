@@ -322,9 +322,9 @@ def get_article_json(article, unit):
         item["grants"] = funders
 
     rg = article.get_render_galley
-    if not rg and article.galley_set.exists():
+    if not rg and article.galley_set.filter(file__mime_type="application/pdf").exists():
         rg = article.galley_set.filter(file__mime_type="application/pdf")\
-                    .order_by("sequence",)[0]
+                               .order_by("sequence",)[0]
 
     supp_files = []
     img_files = []
