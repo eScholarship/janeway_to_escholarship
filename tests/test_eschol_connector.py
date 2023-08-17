@@ -11,8 +11,10 @@ from django.utils import timezone
 import utils
 
 from submission.models import STAGE_PUBLISHED, Licence, Keyword, Funder, Field, FieldAnswer
+from core.models import File, SupplementaryFile
+from core.files import save_file
 
-#from django.core.management import call_command
+from django.core.management import call_command
 #from django.contrib.messages import get_messages
 
 from eschol.logic import *
@@ -21,7 +23,6 @@ from eschol.logic import *
 # - HTML
 # - Plural section
 # - invalid license
-# - Supp Files & galley
 
 class EscholConnectorTest(TestCase):
 
@@ -29,10 +30,9 @@ class EscholConnectorTest(TestCase):
         # unconfigure ESCHOL API to start
         del settings.ESCHOL_API_URL
 
-        # we need to install the plugin else the reverse call
-        # to get the download file link will fail
-        #call_command('install_plugins', 'eschol')
         self.user = helpers.create_user("user1@test.edu")
+        self.request = helpers.Request()
+        self.request.user = self.user
         self.press = helpers.create_press()
         self.journal, _ = helpers.create_journals()
         self.article = helpers.create_article(self.journal,
@@ -42,6 +42,64 @@ class EscholConnectorTest(TestCase):
                                               language=None)
         self.article.owner = self.user
         self.article.save()
+
+    def test_galley(self):
+        # we need to install the plugin else the reverse call
+        # to get the download file link will fail
+        call_command('install_plugins', 'eschol')
+
+        f = File.objects.create(article_id=self.article.pk, label="file", is_galley=True, original_filename="test.pdf", mime_type="application/pdf", uuid_filename="uuid.pdf")
+        galley = helpers.create_galley(self.article, file_obj=f)
+
+        j, e = get_article_json(self.article, get_unit(self.journal))
+
+        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{f.pk}/?access=", j["contentLink"])
+        self.assertEqual(j["contentFileName"], "test.pdf")
+
+    def create_file(self, article, file, label):
+        path_parts = ('articles', article.pk)
+
+        return save_file(self.request, file, label=label, public=True, path_parts=path_parts,)
+
+    def test_supp_files(self):
+        f1 = SimpleUploadedFile(
+            "test.pdf",
+            b"\x00\x01\x02\x03",
+        )
+        tf1 = self.create_file(self.article, f1, "Test File 1")
+
+        f2 = SimpleUploadedFile(
+            "test.xml",
+            """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20120330//EN" "http://jats.nlm.nih.gov/publishing/1.2/JATS-journalpublishing1.dtd">
+            <article>test</article>
+            """.strip().encode("utf-8"),
+        )
+        tf2 = self.create_file(self.article, f2, "Test File 2")
+
+        sf1 = SupplementaryFile.objects.create(file=tf1)
+        self.article.supplementary_files.add(sf1)
+
+        sf2 = SupplementaryFile.objects.create(file=tf2)
+        self.article.supplementary_files.add(sf2)
+
+        self.article.save()
+
+        j, e = get_article_json(self.article, get_unit(self.journal))
+
+        self.assertEqual(len(j['suppFiles']), 2)
+
+        self.assertEqual(j['suppFiles'][0]['file'], 'test.pdf')
+        self.assertEqual(j['suppFiles'][0]['contentType'], 'application/pdf')
+        self.assertEqual(j['suppFiles'][0]['size'], 4)
+        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{tf1.pk}/?access=", j['suppFiles'][0]['fetchLink'])
+
+        self.assertEqual(j['suppFiles'][1]['file'], 'test.xml')
+        self.assertEqual(j['suppFiles'][1]['contentType'], 'application/xml')
+        self.assertEqual(j['suppFiles'][1]['size'], 250)
+        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{tf2.pk}/?access=", j['suppFiles'][1]['fetchLink'])
+
 
     def test_data_availability(self):
         field1 = Field.objects.create(journal=self.journal, press=self.press, name="Data Availability", kind="text", order=1, required=False)
@@ -152,8 +210,6 @@ class EscholConnectorTest(TestCase):
 
         self.assertEqual(len(j), 32)
 
-
-
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'error')
     def test_send_article_no_issue(self, error_mock):
         epub, error = send_article(self.article, False, None)
@@ -168,7 +224,7 @@ class EscholConnectorTest(TestCase):
         self.article.issues.add(issue)
         self.article.save()
         epub, error = article_to_eschol(article=self.article)
-        debug_mock.assert_called_once_with("Escholarhip Deposit for Article 1: {'item': {'sourceName': 'janeway', 'sourceID': '1', 'sourceURL': 'localhost', 'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', 'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, 'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], 'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', 'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', 'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{'id': '/TST.1', 'scheme': 'DOI'}, {'id': 'janeway_1', 'scheme': 'OTHER_ID', 'subScheme': 'other'}]}}")
+        debug_mock.assert_called_once_with(f"Escholarhip Deposit for Article {self.article.pk}: {{'item': {{'sourceName': 'janeway', 'sourceID': '{self.article.pk}', 'sourceURL': 'localhost', 'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', 'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, 'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], 'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', 'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', 'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{{'id': '/TST.{self.article.pk}', 'scheme': 'DOI'}}, {{'id': 'janeway_{self.article.pk}', 'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}")
 
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
     def test_issue_to_eschol(self, debug_mock):
