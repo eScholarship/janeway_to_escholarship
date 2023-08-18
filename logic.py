@@ -126,7 +126,7 @@ def convert_data_availability(d):
             return types.get(f.answer, None)
     return None
 
-def xml_galley_to_html(article, galley, item):
+def xml_galley_to_html(article, galley, epub):
     item = {}
     suppFiles = []
     img_files = []
@@ -190,7 +190,7 @@ def xml_galley_to_html(article, galley, item):
         item.update({"cssFiles": {"file": css.original_filename,
                                   "fetchLink": css.remote_url if css.is_remote else get_file_url(article, css.pk)}})
 
-    return item, suppFiles, img_files
+    return item, suppFiles, img_files, epub
 
 def get_article_json(article, unit):
     sourceName = "janeway"
@@ -334,7 +334,7 @@ def get_article_json(article, unit):
             item.update({"externalLinks": [rg.remote_file]})
         elif rg.file:
             if rg.file.mime_type == 'application/xml' or rg.file.mime_type == 'text/xml':
-                fields, supp_files, img_files = xml_galley_to_html(article, rg)
+                fields, supp_files, img_files, epub = xml_galley_to_html(article, rg, epub)
                 item.update(fields)
             else:
                 item.update({
