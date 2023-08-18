@@ -21,14 +21,16 @@ from eschol.logic import *
 
 # TODO:
 # - HTML
-# - Plural section
-# - invalid license
 
 class EscholConnectorTest(TestCase):
 
     def setUp(self):
         # unconfigure ESCHOL API to start
         del settings.ESCHOL_API_URL
+
+        # we need to install the plugin else the reverse call
+        # to get the download file link will fail
+        call_command('install_plugins', 'eschol')
 
         self.user = helpers.create_user("user1@test.edu")
         self.request = helpers.Request()
@@ -43,10 +45,12 @@ class EscholConnectorTest(TestCase):
         self.article.owner = self.user
         self.article.save()
 
+    def create_file(self, article, file, label):
+        path_parts = ('articles', article.pk)
+
+        return save_file(self.request, file, label=label, public=True, path_parts=path_parts,)
+
     def test_galley(self):
-        # we need to install the plugin else the reverse call
-        # to get the download file link will fail
-        call_command('install_plugins', 'eschol')
 
         f = File.objects.create(article_id=self.article.pk, label="file", is_galley=True, original_filename="test.pdf", mime_type="application/pdf", uuid_filename="uuid.pdf")
         galley = helpers.create_galley(self.article, file_obj=f)
@@ -55,11 +59,6 @@ class EscholConnectorTest(TestCase):
 
         self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{f.pk}/?access=", j["contentLink"])
         self.assertEqual(j["contentFileName"], "test.pdf")
-
-    def create_file(self, article, file, label):
-        path_parts = ('articles', article.pk)
-
-        return save_file(self.request, file, label=label, public=True, path_parts=path_parts,)
 
     def test_supp_files(self):
         f1 = SimpleUploadedFile(
@@ -101,6 +100,21 @@ class EscholConnectorTest(TestCase):
         self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{tf2.pk}/?access=", j['suppFiles'][1]['fetchLink'])
 
 
+    def test_invalid_license(self):
+        license, _ = Licence.objects.get_or_create(journal=self.journal,
+                                                   press=self.press,
+                                                   name="Creative Commons 4",
+                                                   short_name="CC4",
+                                                   url="https://bad.url")
+        license.save()
+        self.article.license = license
+        self.article.save()
+
+        j, e = get_article_json(self.article, get_unit(self.journal))
+
+        self.assertNotIn("license", j)
+
+
     def test_data_availability(self):
         field1 = Field.objects.create(journal=self.journal, press=self.press, name="Data Availability", kind="text", order=1, required=False)
         answer1 = FieldAnswer.objects.create(field=field1, article=self.article, answer="Public repository")
@@ -112,6 +126,16 @@ class EscholConnectorTest(TestCase):
 
         self.assertEqual(j["dataAvailability"], "publicRepo")
         self.assertEqual(j["dataURL"], "http://data.repo")
+
+    def test_plural_sections(self):
+        article2 = helpers.create_article(self.journal,
+                                          with_author=False,
+                                          date_published=datetime(2023, 1, 1, tzinfo=timezone.get_current_timezone()))
+
+        issue = helpers.create_issue(self.journal, articles=[self.article, article2])
+
+        j, e = get_article_json(self.article, get_unit(self.journal))
+        self.assertEqual(j["sectionHeader"], "Articles")
 
     def test_minimal_json(self):
         j, e = get_article_json(self.article, get_unit(self.journal))
