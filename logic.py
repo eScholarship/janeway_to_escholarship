@@ -244,7 +244,7 @@ def get_article_json(article, unit):
         item["language"] = article.language
 
     if article.section:
-        if article.section.plural and article.section.published_articles().count() > 1:
+        if article.section.plural and article.section.article_count() > 1:
             h = article.section.plural
         else:
             h = article.section.name
