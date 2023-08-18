@@ -8,7 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from datetime import datetime
 from django.utils import timezone
 
-import utils
+import utils, os
 
 from submission.models import STAGE_PUBLISHED, Licence, Keyword, Funder, Field, FieldAnswer
 from core.models import File, SupplementaryFile
@@ -18,9 +18,6 @@ from django.core.management import call_command
 #from django.contrib.messages import get_messages
 
 from eschol.logic import *
-
-# TODO:
-# - HTML
 
 class EscholConnectorTest(TestCase):
 
@@ -49,6 +46,51 @@ class EscholConnectorTest(TestCase):
         path_parts = ('articles', article.pk)
 
         return save_file(self.request, file, label=label, public=True, path_parts=path_parts,)
+
+    def test_xml_to_html_galley(self):
+        xml_filepath = f'{os.path.dirname(__file__)}/test_files/glossa_test.xml'
+
+        with open(xml_filepath, 'rb') as f:
+            xml_file = SimpleUploadedFile("test.xml", f.read())
+        xml_obj = self.create_file(self.article, xml_file, "Test XML File")
+        galley = helpers.create_galley(self.article, file_obj=xml_obj)
+        self.article.render_galley = galley
+
+        img_file = SimpleUploadedFile("test.png", b"\x00\x01\x02\x03")
+        img_obj = self.create_file(self.article, img_file, "Img file 1")
+        galley.images.add(img_obj)
+        galley.save()
+
+        pdf_file = SimpleUploadedFile("test.pdf", b"\x00\x01\x02\x03")
+        pdf_obj = self.create_file(self.article, pdf_file, "Test PDF File")
+        supp_pdf = SupplementaryFile.objects.create(file=pdf_obj)
+        self.article.supplementary_files.add(supp_pdf)
+
+        self.article.save()
+
+        j, e = get_article_json(self.article, get_unit(self.journal))
+
+        self.assertEqual(j['id'], 'ark:/13030/qtXXXXXXXX')
+        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/", j["contentLink"])
+        self.assertEqual(j["contentFileName"], 'qtXXXXXXXX.html')
+
+        self.assertEqual(len(j['suppFiles']), 2)
+
+        self.assertEqual(j['suppFiles'][0]['file'], 'qtXXXXXXXX.xml')
+        self.assertEqual(j['suppFiles'][0]['contentType'], 'application/xml')
+        self.assertEqual(j['suppFiles'][0]['size'], 157291)
+        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{xml_obj.pk}/?access=", j['suppFiles'][0]['fetchLink'])
+        self.assertEqual(j['suppFiles'][0]['title'], '[XML] Test Article from Utils Testing Helpers')
+
+        self.assertEqual(j['suppFiles'][1]['file'], 'test.pdf')
+        self.assertEqual(j['suppFiles'][1]['contentType'], 'application/pdf')
+        self.assertEqual(j['suppFiles'][1]['size'], 4)
+        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{pdf_obj.pk}/?access=", j['suppFiles'][1]['fetchLink'])
+        #self.assertEqual(j['suppFiles'][1]['title'], '')
+
+        self.assertEqual(len(j['imgFiles']), 1)
+        self.assertEqual(j['imgFiles'][0]['file'], 'test.png')
+        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{img_obj.pk}/?access=", j['imgFiles'][0]['fetchLink'])
 
     def test_galley(self):
 
