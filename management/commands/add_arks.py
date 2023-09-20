@@ -57,7 +57,7 @@ class Command(BaseCommand):
                         # matches the pattern
                         prefix = f'{journal_code}_'
                         if x["id"].startswith(prefix):
-                            ojs_id = x["id"].strip(prefix)
+                            ojs_id = x["id"][len(prefix):]
                             print(f'use local_id as ojs_id {ojs_id}')
                 if ojs_id:
                     id_map[ojs_id] = {"ark": r["id"], "source": r["source"], "doi": r["doi"]}
