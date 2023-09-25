@@ -90,13 +90,16 @@ class Command(BaseCommand):
                         ark = i["value"]
                         print(f'parsed ark = {ark}')
 
-                if ojs_id in id_map:
-                    ark = id_map[ojs_id]["ark"]
-                    source = id_map[ojs_id]["source"]
-                    doi = id_map[ojs_id]["doi"]
+                ojs_item = id_map.get(ojs_id, False)
+                if ojs_item:
+                    ark = ojs_item["ark"]
+                    source = ojs_item["source"]
+                    doi = ojs_item["doi"]
                 elif ark:
-                    source = ark_map[ark]["source"]
-                    doi = ark_map[ark]["doi"]
+                    ark_item = ark_map.get(ark, False)
+                    if ark_item:
+                        source = ark_item["source"]
+                        doi = ark_item["doi"]
 
                 print(f'ark = {ark}, ojs_id = {ojs_id}')
 
