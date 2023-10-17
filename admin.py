@@ -5,7 +5,7 @@ class JournalUnitAdmin(admin.ModelAdmin):
     fields = ['journal', 'unit', 'default_css_url']
 
 class EscholArticleAdmin(admin.ModelAdmin):
-    pass
+    search_fields = ('article__title',)
 
 admin.site.register(JournalUnit, JournalUnitAdmin)
 admin.site.register(EscholArticle, EscholArticleAdmin)
