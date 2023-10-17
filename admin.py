@@ -6,6 +6,7 @@ class JournalUnitAdmin(admin.ModelAdmin):
 
 class EscholArticleAdmin(admin.ModelAdmin):
     search_fields = ('article__title',)
+    list_filter = ('article__journal',)
 
 admin.site.register(JournalUnit, JournalUnitAdmin)
 admin.site.register(EscholArticle, EscholArticleAdmin)
