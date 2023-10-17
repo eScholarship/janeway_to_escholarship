@@ -43,7 +43,7 @@
                         {% if ea and ea.is_doi_registered %}
                             {{ article.get_doi }}
                         {% elif ea.doi_result_text %}
-                            {{ eq.doi_result_text }}
+                            {{ ea.doi_result_text }}
                         {% else %}
                             (not registered)
                         {% endif %}
