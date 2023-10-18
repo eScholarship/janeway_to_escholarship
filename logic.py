@@ -475,6 +475,9 @@ def send_article(article, is_configured=False, request=None):
             return None, f"An unexpected API error occured sending {article} to eScholarship"
     else:
         logger.debug(f'Escholarhip Deposit for Article {article.pk}: {variables}')
+        msg = f"eScholarship API not configured: {article} not sent"
+        if request: messages.error(request, msg)
+        return None, msg
 
     return epub, None
 
