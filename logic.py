@@ -495,9 +495,9 @@ def send_issue_meta(issue, is_configured=False):
 
         if is_configured:
             r = send_to_eschol(issue_query, variables)
-            logger.info(r.text)
-            if r.text == "Cover Image uploaded":
-                return True, None
+            d = json.loads(r.text)
+            if d["data"]["updateIssue"]["message"] == "Cover Image uploaded":
+                return True, "Cover Image uploaded"
             else:
                 return False, r.text
         else:
