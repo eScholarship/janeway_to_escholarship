@@ -428,13 +428,13 @@ def send_article(article, is_configured=False, request=None):
 
     if not article.issue:
         msg = f'{article} published without issue'
-        logger.error(msg)
+        logger.info(msg)
         if request: messages.error(request, msg)
         return None, msg
 
     if not article.owner:
         msg = f'{article} published without owner'
-        logger.error(msg)
+        logger.info(msg)
         if request: messages.error(request, msg)
         return None, msg
 
