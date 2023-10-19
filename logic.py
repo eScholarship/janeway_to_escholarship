@@ -290,7 +290,7 @@ def get_article_json(article, unit):
                       "issueDate": issue.date.strftime("%Y-%m-%d"),
                       "orderInSection": int(str(sorder) + str(aorder).zfill(4))}
         if issue.issue_description:
-            issue_vars["issueDescription"] = issue.issue_description,
+            issue_vars["issueDescription"] = issue.issue_description
         if issue.short_description:
             issue_vars["issueCoverCaption"] = issue.short_description
         item.update(issue_vars)

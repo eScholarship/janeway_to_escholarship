@@ -201,6 +201,8 @@ class EscholConnectorTest(TestCase):
 
     def test_kitchen_sink(self):
         issue = helpers.create_issue(self.journal, articles=[self.article])
+        issue.issue_description = "Test issue description<br>"
+        issue.save()
         license, _ = Licence.objects.get_or_create(journal=self.journal,
                                                    press=self.press,
                                                    name="Creative Commons 4",
@@ -261,6 +263,7 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["issue"], '0')
         self.assertEqual(j["issueTitle"], 'Test Issue from Utils Testing Helpers')
         self.assertEqual(j["issueDate"], '2022-01-01')
+        self.assertEqual(j["issueDescription"], "Test issue description<br>")
         self.assertEqual(j["orderInSection"], 10001)
         self.assertEqual(len(j["localIDs"]), 1)
         self.assertEqual(j["localIDs"][0]["id"], f'janeway_{self.article.pk}')
@@ -274,7 +277,7 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["grants"][0]["name"], "Test Funder")
         self.assertEqual(j["grants"][0]["reference"], "http://dx.doi.org/10.13039/501100021082")
 
-        self.assertEqual(len(j), 32)
+        self.assertEqual(len(j), 33)
 
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'error')
     def test_send_article_no_issue(self, error_mock):
