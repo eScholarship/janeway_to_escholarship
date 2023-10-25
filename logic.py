@@ -426,6 +426,12 @@ def register_doi(article, epub, request=None):
 def send_article(article, is_configured=False, request=None):
     unit = get_unit(article.journal)
 
+    if not article.is_published:
+        msg = f'{article} is not published'
+        logger.info(msg)
+        if request: messages.error(request, msg)
+        return None, msg
+
     if not article.issue:
         msg = f'{article} published without issue'
         logger.info(msg)
@@ -434,6 +440,12 @@ def send_article(article, is_configured=False, request=None):
 
     if not article.owner:
         msg = f'{article} published without owner'
+        logger.info(msg)
+        if request: messages.error(request, msg)
+        return None, msg
+
+    if not article.title:
+        msg = f'{article} published without title'
         logger.info(msg)
         if request: messages.error(request, msg)
         return None, msg
