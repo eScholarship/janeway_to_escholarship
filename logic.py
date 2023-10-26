@@ -166,18 +166,17 @@ def xml_galley_to_html(article, galley, epub):
                                         filename="{}.xml".format(short_ark),
                                         title="[XML] {}".format(article.title)))
 
-    supp_pdf = None
+    # look for the PDF galley there should only be one but
+    # we'll take the first one regardless
+    # first look in the galleys marked as type "PDF"
+    # if we don't find any look for galley with files with
+    # mime_type = pdf
     pdfs = article.pdfs
-    if len(pdfs) > 0:
-        supp_pdf = pdfs[0].file
-    else:
-        # if there are no galleys with type "pdf" look for galleys that have files with pdf mime types
+    if len(pdfs) == 0:
         pdfs = article.galley_set.filter(type="", file__mime_type__in=PDF_MIMETYPES)
-        if len(pdfs) == 1:
-            supp_pdf = pdfs[0].file
 
-    if supp_pdf:
-        suppFiles.append(get_supp_file_json(supp_pdf,
+    if len(pdfs) > 0:
+        suppFiles.append(get_supp_file_json(pdfs[0].file,
                                             article,
                                             filename="{}.pdf".format(short_ark),
                                             title="[PDF] {}".format(article.title)))
