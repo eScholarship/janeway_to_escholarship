@@ -279,12 +279,12 @@ class EscholConnectorTest(TestCase):
 
         self.assertEqual(len(j), 33)
 
-    @patch.object(utils.logger.PrefixedLoggerAdapter, 'error')
-    def test_send_article_no_issue(self, error_mock):
+    @patch.object(utils.logger.PrefixedLoggerAdapter, 'info')
+    def test_send_article_no_issue(self, info_mock):
         epub, error = send_article(self.article, False, None)
         msg = f'{self.article} published without issue'
         self.assertEqual(error, msg)
-        error_mock.assert_called_once_with(msg)
+        info_mock.assert_called_once_with(msg)
 
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
     def test_article_to_eschol(self, debug_mock):
