@@ -472,6 +472,10 @@ def send_article(article, is_configured=False, request=None):
                 article.save()
                 if article.get_doi():
                     register_doi(article, epub, request)
+                else:
+                    msg = f"{article} published without DOI"
+                    logger.warning(msg)
+                    if request: messages.warning(request, msg)
             else:
                 error_msg = f'ERROR sending Article {article.pk} to eScholarship: {data["errors"]}'
                 logger.error(error_msg)
