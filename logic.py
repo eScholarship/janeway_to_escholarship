@@ -14,7 +14,6 @@ from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
 from core.files import PDF_MIMETYPES
 
-from identifiers import logic as id_logic
 from utils import logic as utils_logic
 
 from utils.logger import get_logger
@@ -449,10 +448,6 @@ def send_article(article, is_configured=False, request=None):
         if request: messages.error(request, msg)
         return None, msg
 
-    # make sure we've assigned a DOI
-    if not article.get_doi():
-        id = id_logic.generate_crossref_doi_with_pattern(article)
-
     item, epub = get_article_json(article, unit)
     if epub:
         item["id"] = epub.ark
@@ -475,7 +470,8 @@ def send_article(article, is_configured=False, request=None):
                 article.is_remote = True
                 article.remote_url = epub.get_eschol_url()
                 article.save()
-                register_doi(article, epub, request)
+                if article.get_doi():
+                    register_doi(article, epub, request)
             else:
                 error_msg = f'ERROR sending Article {article.pk} to eScholarship: {data["errors"]}'
                 logger.error(error_msg)
