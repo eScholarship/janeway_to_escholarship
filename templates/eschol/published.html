@@ -33,7 +33,7 @@
         {% for obj in objs %}
             <li>Article: {{ obj.article }} at {{ obj.ark }}
                 {% if not obj.doi_registered and obj.doi_result_text %}
-                    <li>{{ obj.doi_result_text }}</li>
+                    <ul></ul><li>EZID DOI registration failure: {{ obj.doi_result_text }}</li></ul>
                 {% endif %}
             </li>
 
