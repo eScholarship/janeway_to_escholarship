@@ -393,13 +393,13 @@ def get_unit(journal):
         unit = journal.code
     return unit
 
-def register_doi(article, epub, request=None):
+def register_doi(article, epub, request):
     try:
         from plugins.ezid.logic import register_journal_doi, update_journal_doi
         if not epub.is_doi_registered:
-            enabled, success, result_text = register_journal_doi(article=article)
+            enabled, success, result_text = register_journal_doi(article, request)
         else:
-            enabled, success, result_text = update_journal_doi(article=article)
+            enabled, success, result_text = update_journal_doi(article, request)
         if enabled:
             epub.is_doi_registered = success
             epub.doi_result_text = result_text
