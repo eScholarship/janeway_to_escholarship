@@ -4,6 +4,7 @@ import json, csv
 
 from utils.models import LogEntry
 from journal.models import Journal
+from submission.models import Article
 from django.contrib.contenttypes.models import ContentType
 
 from plugins.eschol.models import EscholArticle
@@ -25,7 +26,9 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        journal_code = options.get("journal_code")
+        # janeway journal codes are limited to 24 chars
+        # truncate it if the user doesn't
+        journal_code = options.get("journal_code")[:24]
         import_file = options.get("import_file")
 
         if not Journal.objects.filter(code=journal_code).exists():
@@ -130,3 +133,14 @@ class Command(BaseCommand):
                 else:
                     if a.stage == 'Published':
                         print(f'ERROR Published article {a.pk}: OJS id not found in export')
+
+        print("Ark and DOI import complete.")
+
+        ids = EscholArticle.objects.filter(article__journal__code=journal_code).values_list('article__pk', flat=True)
+        articles = Article.objects.filter(journal__code=journal_code, stage="Published").exclude(pk__in=ids)
+        if articles.count() == 0:
+            print(f"There are no published articles in {journal_code} without an escholarship ark assigned")
+        else:
+            print(f"The following published articles don't have an ark assigned:")
+            for a in articles:
+                print(f'{a.stage}\t{a.pk}\t{a.url}')
