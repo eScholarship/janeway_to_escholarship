@@ -15,10 +15,31 @@
     <div class="title-area">
         <h2>Published {{ obj }}</h2>
     </div>
-    <div class="content">
-        {% for m in messages %}
-            <p>{{ m }}</p>
-        {% endfor %}
+    {% if  errors|length >  0%}
+    <div class="alert content">
+        <p>Errors occurred upon deposit:</p>
+        <ul>
+            {% for e in errors %}
+                <li>{{ e }}</li>
+            {% endfor %}
+        </ul>
     </div>
+    {% endif %}
+
+    {% if objs|length > 0 %}
+    <div class="success content">
+        <p>Successfully deposited:</p>
+        <ul>
+        {% for obj in objs %}
+            <li>Article: {{ obj.article }} at {{ obj.ark }}
+                {% if not obj.doi_registered and obj.doi_result_text %}
+                    <ul></ul><li>EZID DOI registration failure: {{ obj.doi_result_text }}</li></ul>
+                {% endif %}
+            </li>
+
+        {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
 </div>
 {% endblock body %}

@@ -42,6 +42,6 @@ def register_for_events():
 
 def hook_registry():
     ''' connect a hook with a method in this plugin's logic '''
-    logger.debug('>>>>>>>>>>>>>>>>> hook_registry called for eschol plugin')
+    logger.debug('hook_registry called for eschol plugin')
     event_logic.Events.register_for_event(event_logic.Events.ON_ARTICLE_PUBLISHED,
                                           logic.article_to_eschol)

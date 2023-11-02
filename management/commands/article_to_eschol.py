@@ -18,4 +18,14 @@ class Command(BaseCommand):
         article_id = options.get("article_id")
         article = Article.objects.get(id=article_id)
 
-        pprint.pprint(logic.article_to_eschol(article=article))
+        epub, error = logic.article_to_eschol(article=article)
+        if error:
+            print(f'An error occured sending article {article_id} to eScholarship:')
+            print(error)
+        if epub:
+            print(f'Deposited article {article.pk} to eScholarship at {epub.ark}')
+            if epub.is_doi_registered:
+                print(f'\tDOI registered {article.get_doi()}')
+            else:
+                print(f'\tDOI not registered: {epub.doi_result_text}')
+            
