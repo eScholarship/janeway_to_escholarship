@@ -16,6 +16,7 @@
     </div>
     <div class="content">
         <a class="button" href="{% url 'eschol_publish_issue' issue.pk %}">Publish Full Issue</a>
+        <a class="button" href="{% url 'manage_issues_id' issue.pk %}">Manage Issue</a>
         <table class="table table-bordered small" id="eschol_publish_articles">
             <thead>
             <tr>
@@ -31,7 +32,13 @@
             {% for article in articles %}
                 {% with article.escholarticle_set.all|first as ea %}
                 <tr>
-                    <td>{{ article.pk }}</td>
+                    <td>
+                        {% if article.stage and article.stage != 'Rejected' and article.stage != 'Published' %}
+                            <a href="{{ article.current_workflow_element_url }}">{{ article.pk }}</a>
+                        {% else %}
+                            <a href="{% external_journal_url article.journal 'manage_archive_article' article.pk %}">{{ article.pk }}</a>
+                        {% endif %}
+                    </td>
                     {% if ea %}
                     <td><a href="{{ ea.get_eschol_url }}">{{ article.title }}</a></td>
                     {% else %}
