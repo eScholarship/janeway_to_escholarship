@@ -16,7 +16,7 @@
     <div class="content">
         <ul>
             {% for issue in issues %}
-                <li><a href="{% url 'eschol_list_articles' issue.pk %}">{{ issue }}</a></li>
+                <li><a href="{% url 'eschol_list_articles' issue.pk %}">Volume {{ issue.volume }} Issue {{ issue.issue }} {{ issue.issue_title }} ({{issue.date.year}})</a></li>
             {% endfor %}
         </ul>
     </div>
