@@ -499,7 +499,7 @@ def send_issue_meta(issue, is_configured=False):
                                           port=None,
                                           path=issue.cover_image.url)
         variables = {"input": {"journal": unit,
-                               "issue": int(issue.issue),
+                               "issue": str(issue.issue),
                                "volume": issue.volume,
                                "coverImageURL": cover_url}}
 
