@@ -192,16 +192,20 @@ def xml_galley_to_html(article, galley, epub):
 
 def get_article_json(article, unit):
     sourceName = "janeway"
+    sourceID = article.pk
     if EscholArticle.objects.filter(article=article).exists():
         epub = EscholArticle.objects.get(article=article)
         if epub.source_name:
             sourceName = epub.source_name
+            sourceID = epub.source_id
+            if not sourceID:
+                logger.error(f"{article} has source {epub.source_name} but source_id is not defined")
     else:
         epub = False
 
     item = {
         "sourceName": sourceName, # required
-        "sourceID": str(article.pk), # required
+        "sourceID": str(sourceID), # required
         "sourceURL": article.journal.press.domain,
         "submitterEmail": article.owner.email, # required
         "title": article.title, # required
