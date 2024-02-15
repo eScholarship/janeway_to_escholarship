@@ -66,7 +66,7 @@ class Command(BaseCommand):
                     id_map[ojs_id] = {"ark": r["id"], "source": r["source"], "doi": r["doi"]}
                     print(f'add {ojs_id}: {id_map[ojs_id]}')
 
-                ark_map[r["id"]]  = {"source": r["source"], "doi": r["doi"]}
+                ark_map[r["id"]]  = {"source": r["source"], "external_id": r["external_id"], "doi": r["doi"]}
 
         ctype = ContentType.objects.get(app_label='submission', model='article')
 
@@ -97,18 +97,20 @@ class Command(BaseCommand):
                 if ojs_item:
                     ark = ojs_item["ark"]
                     source = ojs_item["source"]
+                    source_id = ojs_id
                     doi = ojs_item["doi"]
                 elif ark:
                     ark_item = ark_map.get(ark, False)
                     if ark_item:
                         source = ark_item["source"]
+                        source_id = ark_item["external_id"]
                         doi = ark_item["doi"]
 
                 print(f'ark = {ark}, ojs_id = {ojs_id}')
 
                 if ark:
                     ark = f'ark:/13030/{ark}'
-                    e, created = EscholArticle.objects.get_or_create(article=a, ark=ark, source_name=source)
+                    e, created = EscholArticle.objects.get_or_create(article=a, ark=ark, source_name=source, source_id=source_id)
                     if created:
                         print(f'Created eschol article {ark}')
                     else:
