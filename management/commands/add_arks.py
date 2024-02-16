@@ -63,7 +63,7 @@ class Command(BaseCommand):
                             ojs_id = x["id"][len(prefix):]
                             print(f'use local_id as ojs_id {ojs_id}')
                 if ojs_id:
-                    id_map[ojs_id] = {"ark": r["id"], "source": r["source"], "doi": r["doi"]}
+                    id_map[ojs_id] = {"ark": r["id"], "source": r["source"], "external_id": r["external_id"], "doi": r["doi"]}
                     print(f'add {ojs_id}: {id_map[ojs_id]}')
 
                 ark_map[r["id"]]  = {"source": r["source"], "external_id": r["external_id"], "doi": r["doi"]}
@@ -97,7 +97,7 @@ class Command(BaseCommand):
                 if ojs_item:
                     ark = ojs_item["ark"]
                     source = ojs_item["source"]
-                    source_id = ojs_id
+                    source_id = ojs_item["external_id"]
                     doi = ojs_item["doi"]
                 elif ark:
                     ark_item = ark_map.get(ark, False)
