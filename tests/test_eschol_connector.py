@@ -279,6 +279,12 @@ class EscholConnectorTest(TestCase):
 
         self.assertEqual(len(j), 33)
 
+    def test_ojs_source(self):
+        EscholArticle.objects.create(article=self.article, ark="qt0000000", source_name="ojs", source_id="555555")
+        j, e = get_article_json(self.article, get_unit(self.journal))
+        self.assertEqual(j["sourceName"], "ojs")
+        self.assertEqual(j["sourceID"], "555555")
+
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'info')
     def test_send_article_no_issue(self, info_mock):
         epub, error = send_article(self.article, False, None)
