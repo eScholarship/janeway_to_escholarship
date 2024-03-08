@@ -1,11 +1,11 @@
 {% extends "admin/core/base.html" %}
 {% load foundation %}
 
-{% block title %}Janeway to Eschol Connection Manager -- Publish {{ obj }}{% endblock %}
+{% block title %}{{ plugin_name }} -- Publish {{ obj }}{% endblock %}
 
 {% block breadcrumbs %}
     {{ block.super }}
-    <li><a href="{% url 'eschol_manager' %}">Janeway to Escholarship Plugin</a></li>
+    <li><a href="{% url 'eschol_manager' %}">{{ plugin_name }}</a></li>
     <li><a href="{% url 'eschol_list_articles' issue.pk %}">Publish Issue</a></li>
     <li>Published {{ obj_name }}</li>
 {% endblock breadcrumbs %}

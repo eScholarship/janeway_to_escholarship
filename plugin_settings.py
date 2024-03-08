@@ -7,8 +7,8 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-PLUGIN_NAME = 'Janeway to Eschol Plugin'
-DISPLAY_NAME = 'eschol'
+PLUGIN_NAME = 'eScholarship Publishing Plugin'
+DISPLAY_NAME = 'eScholarship Publishing Plugin'
 DESCRIPTION = 'middleware between janeway and escholorship'
 AUTHOR = 'California Digital Library'
 VERSION = 0.1
