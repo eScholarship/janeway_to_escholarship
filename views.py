@@ -15,12 +15,14 @@ from datetime import datetime, timedelta
 from .models import AccessToken
 
 from .logic import issue_to_eschol, article_to_eschol
+from .plugin_settings import PLUGIN_NAME
 
 def publish_issue(request, issue_id):
     template = 'eschol/published.html'
     issue = get_object_or_404(Issue, pk=issue_id)
     epubs, errors = issue_to_eschol(request=request, issue=issue)
     context = {
+        'plugin_name': PLUGIN_NAME,
         'obj': issue,
         'objs': epubs,
         'errors': errors,
@@ -34,6 +36,7 @@ def publish_article(request, article_id):
     article = get_object_or_404(Article, pk=article_id)
     epub, error = article_to_eschol(request=request, article=article)
     context = {
+        'plugin_name': PLUGIN_NAME,
         'obj': article,
         'objs': [epub] if epub else [],
         'errors': [error] if error else [],
@@ -46,6 +49,7 @@ def list_articles(request, issue_id):
     template = 'eschol/list_articles.html'
     issue = get_object_or_404(Issue, pk=issue_id)
     context = {
+        'plugin_name': PLUGIN_NAME,
         'issue': issue,
         'articles': issue.get_sorted_articles()
     }
@@ -60,6 +64,7 @@ def eschol_manager(request):
         issues = Issue.objects.all()
 
     context = {
+        'plugin_name': PLUGIN_NAME,
         'issues': issues
     }
 
