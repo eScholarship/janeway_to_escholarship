@@ -12,7 +12,7 @@ from django.http import HttpResponseForbidden
 
 from datetime import datetime, timedelta
 
-from .models import AccessToken, EscholArticle
+from .models import AccessToken
 
 from .logic import issue_to_eschol, article_to_eschol
 from .plugin_settings import PLUGIN_NAME
