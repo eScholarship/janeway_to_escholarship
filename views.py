@@ -12,23 +12,36 @@ from django.http import HttpResponseForbidden
 
 from datetime import datetime, timedelta
 
-from .models import AccessToken
+from .models import AccessToken, EscholArticle
 
 from .logic import issue_to_eschol, article_to_eschol
 from .plugin_settings import PLUGIN_NAME
 
+from django_q.tasks import async_task
+from django_q.tasks import fetch_group
+
+def publish_issue_task(issue_id):
+    issue = Issue.objects.get(pk=issue_id)
+    epubs, errors = issue_to_eschol(issue=issue)
+    return {"articles": [ e.pk for e in epubs], "errors": errors}
+    
+def publish_issue_result(task):
+    result = task.result
+    issue = Issue.objects.get(pk=int(task.args[0]))
+    if len(result["errors"]) > 0:
+        task.success = False
+        error_list = ";".join(result["errors"])
+        task.result = f"Failed to publish {issue}: {error_list}"
+    else:
+        task.result = f"Published {len(result['articles'])} articles in {issue}"
+    task.save()
+
 def publish_issue(request, issue_id):
-    template = 'eschol/published.html'
+    template = 'eschol/issue_publish_queued.html'
     issue = get_object_or_404(Issue, pk=issue_id)
-    epubs, errors = issue_to_eschol(request=request, issue=issue)
-    context = {
-        'plugin_name': PLUGIN_NAME,
-        'obj': issue,
-        'objs': epubs,
-        'errors': errors,
-        'issue': issue,
-        'obj_name': "Issue"
-    }
+    async_task('plugins.eschol.views.publish_issue_task', issue_id, group=issue_id, timeout=1000, hook='plugins.eschol.views.publish_issue_result')
+    context = {'plugin_name': PLUGIN_NAME,
+               'issue': issue}
     return render(request, template, context)
 
 def publish_article(request, article_id):
@@ -51,7 +64,8 @@ def list_articles(request, issue_id):
     context = {
         'plugin_name': PLUGIN_NAME,
         'issue': issue,
-        'articles': issue.get_sorted_articles()
+        'articles': issue.get_sorted_articles(),
+        'tasks': fetch_group(issue_id),
     }
 
     return render(request, template, context)

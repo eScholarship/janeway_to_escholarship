@@ -17,6 +17,7 @@
     <div class="content">
         <a class="button" href="{% url 'eschol_publish_issue' issue.pk %}">Publish Full Issue</a>
         <a class="button" href="{% url 'manage_issues_id' issue.pk %}">Manage Issue</a>
+        <h3>Articles</h3>
         <table class="table table-bordered small" id="eschol_publish_articles">
             <thead>
             <tr>
@@ -61,6 +62,32 @@
             {% endfor %}
             </tbody>
         </table>
+        {% if tasks|length > 0 %}
+        <h3>Issue publication history</h3>
+        <table class="table table-bordered small" id="eschol_publish_articles">
+            <thead>
+            <tr>
+                <th>Started</th>
+                <th>Stopped</th>
+                <th>Successful</th>
+                <th>Result</th>
+            </tr>
+            </thead>
+            <tbody>
+                {% for t in tasks %}
+                <tr>
+                    <td>{{ t.started }}</td>
+                    <td>{{ t.stopped }}</td>
+                    <td>{% if t.success %}<img src="/static/admin/img/icon-yes.svg" alt="True">{% else %}<img src="/static/admin/img/icon-no.svg" alt="False">{% endif %}</td>
+                    <td>{{ t.result }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
     </div>
 </div>
+
+
+
 {% endblock body %}
