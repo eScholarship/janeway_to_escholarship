@@ -34,3 +34,36 @@ If you want to test this plugin from a local janeway dev environment to a local 
 ```
 ESCHOL_API_URL = 'http://host.docker.internal:4001/graphql'
 ```
+
+## Async issue publishing
+
+- Install Django Q [https://django-q.readthedocs.io/en/latest/index.html]
+
+- Add to `settings.py`
+
+```
+Q_CLUSTER = {
+    'name': 'DjangORM',
+    'workers': 4,
+    'timeout': None, # no timeout
+    'retry': 120,
+    'queue_limit': 50,
+    'bulk': 10,
+    'orm': 'default'
+}
+```
+- Add service for qcluster workers in `/etc/systemd/system/qcluster.service`
+```
+[Unit]
+Description=QCluster runner
+After=network.target
+
+[Service]
+User=eschol
+ExecStart=/apps/eschol/bin/python manage.py qcluster
+
+[Install]
+WantedBy=multi-user.target
+```
+`sudo systemctl enable qcluster.service`
+`sudo systemctl start qcluster.service`
