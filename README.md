@@ -40,18 +40,23 @@ ESCHOL_API_URL = 'http://host.docker.internal:4001/graphql'
 - Install Django Q [https://django-q.readthedocs.io/en/latest/index.html]
 
 - Add to `settings.py`
-
 ```
+INSTALLED_APPS = (
+    # other apps
+    'django_q',
+)
+
 Q_CLUSTER = {
     'name': 'DjangORM',
     'workers': 4,
-    'timeout': None, # no timeout
-    'retry': 120,
+    'timeout': 3600, # 1 hour
+    'retry': 4000, # must be longer than timeout
     'queue_limit': 50,
     'bulk': 10,
     'orm': 'default'
 }
 ```
+- `python src/manage.py migrate django_q`
 - Add service for qcluster workers in `/etc/systemd/system/qcluster.service`
 ```
 [Unit]
@@ -60,7 +65,7 @@ After=network.target
 
 [Service]
 User=eschol
-ExecStart=/apps/eschol/bin/python manage.py qcluster
+ExecStart=/apps/eschol/.janewayenv-38/bin/python /apps/eschol/janeway/src/manage.py qcluster
 
 [Install]
 WantedBy=multi-user.target
