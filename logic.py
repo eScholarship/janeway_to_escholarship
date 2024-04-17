@@ -327,14 +327,14 @@ def get_article_json(article, unit):
         item["grants"] = funders
 
     rg = article.get_render_galley
-    if not rg and article.galley_set.filter(file__mime_type="application/pdf").exists():
-        rg = article.galley_set.filter(file__mime_type="application/pdf")\
+    if not rg and article.galley_set.filter(file__mime_type="application/pdf", public=True).exists():
+        rg = article.galley_set.filter(file__mime_type="application/pdf", public=True)\
                                .order_by("sequence",)[0]
 
     supp_files = []
     img_files = []
     # If there's no galley just leave it out
-    if rg:
+    if rg and rg.public:
         if rg.is_remote:
             item.update({"externalLinks": [rg.remote_file]})
         elif rg.file:
