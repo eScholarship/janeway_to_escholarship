@@ -170,9 +170,9 @@ def xml_galley_to_html(article, galley, epub):
     # first look in the galleys marked as type "PDF"
     # if we don't find any look for galley with files with
     # mime_type = pdf
-    pdfs = article.pdfs
+    pdfs = article.pdfs.filter(public=True)
     if len(pdfs) == 0:
-        pdfs = article.galley_set.filter(type="", file__mime_type__in=PDF_MIMETYPES)
+        pdfs = article.galley_set.filter(type="", file__mime_type__in=PDF_MIMETYPES, public=True)
 
     if len(pdfs) > 0:
         suppFiles.append(get_supp_file_json(pdfs[0].file,
@@ -327,14 +327,14 @@ def get_article_json(article, unit):
         item["grants"] = funders
 
     rg = article.get_render_galley
-    if not rg and article.galley_set.filter(file__mime_type="application/pdf").exists():
-        rg = article.galley_set.filter(file__mime_type="application/pdf")\
+    if not rg and article.galley_set.filter(file__mime_type="application/pdf", public=True).exists():
+        rg = article.galley_set.filter(file__mime_type="application/pdf", public=True)\
                                .order_by("sequence",)[0]
 
     supp_files = []
     img_files = []
     # If there's no galley just leave it out
-    if rg:
+    if rg and rg.public:
         if rg.is_remote:
             item.update({"externalLinks": [rg.remote_file]})
         elif rg.file:
