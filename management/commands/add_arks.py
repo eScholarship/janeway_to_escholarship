@@ -105,11 +105,12 @@ class Command(BaseCommand):
 
                 if ark:
                     ark = f'ark:/13030/{ark}'
-                    e, created = EscholArticle.objects.get_or_create(article=a, ark=ark,
-                                                                     defaults={'source_name': source,
+                    e, created = EscholArticle.objects.get_or_create(article=a,
+                                                                     defaults={'ark': ark,
+                                                                               'source_name': source,
                                                                                'source_id': source_id})
-                    if not created and (e.source != source or e.source_id != source_id):
-                        print(f'ERROR: {ark} found with different sources {source} and {e.source_name}')
+                    if not created and (e.ark != ark or e.source != source or e.source_id != source_id):
+                        print(f'ERROR: {e} does not match {ark} | {source} | {source_id}')
 
                     if doi and not doi == 'NULL':
                         # If we have an DOI delete any existing DOIs
