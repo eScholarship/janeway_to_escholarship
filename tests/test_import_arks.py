@@ -107,3 +107,12 @@ class TestImportArks(TestCase):
         out = self.call_command(l2.code, self.get_file_path("test4.tsv"))
         self.assertEqual(EscholArticle.objects.count(), 1)
 
+    def test_existing_escholarticle(self):
+        e = EscholArticle.objects.create(article=self.article, ark='ark:/13030/qt00000002', source_name='ojs', source_id="999")
+        self.create_log_entry(LOG_ENTRY1)
+        out = self.call_command(self.journal.code, self.get_file_path("test1.tsv"))
+        self.assertEqual(EscholArticle.objects.count(), 1)
+        a = EscholArticle.objects.get(article=self.article)
+        self.assertEqual(a.ark, "ark:/13030/qt00000002")
+        self.assertEqual(a.source_name, "ojs")
+        self.assertEqual(a.source_id, "999")

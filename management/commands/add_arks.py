@@ -80,8 +80,6 @@ class Command(BaseCommand):
                 print(f'ERROR Article {a.pk}: no log entries found')
             else:
                 d = json.loads(e[0].description.partition("Import metadata:")[2])
-                print(f'found log entry: {d}')
-
 
                 for i in d['external_identifiers']:
                     # source_id is the ojs id
@@ -91,7 +89,6 @@ class Command(BaseCommand):
                     # some items also logged an ark upon import
                     if i['name'] == "ark":
                         ark = i["value"]
-                        print(f'parsed ark = {ark}')
 
                 ojs_item = id_map.get(ojs_id, False)
                 if ojs_item:
@@ -106,21 +103,19 @@ class Command(BaseCommand):
                         source_id = ark_item["external_id"]
                         doi = ark_item["doi"]
 
-                print(f'ark = {ark}, ojs_id = {ojs_id}')
-
                 if ark:
                     ark = f'ark:/13030/{ark}'
-                    e, created = EscholArticle.objects.get_or_create(article=a, ark=ark, source_name=source, source_id=source_id)
-                    if created:
-                        print(f'Created eschol article {ark}')
-                    else:
-                        print(f'Got eschol article {ark}')
+                    e, created = EscholArticle.objects.get_or_create(article=a,
+                                                                     defaults={'ark': ark,
+                                                                               'source_name': source,
+                                                                               'source_id': source_id})
+                    if not created and (e.ark != ark or e.source != source or e.source_id != source_id):
+                        print(f'ERROR: {e} does not match {ark} | {source} | {source_id}')
 
                     if doi and not doi == 'NULL':
                         # If we have an DOI delete any existing DOIs
                         # We assume the DOI coming from the jschol export is the most recent
                         if Identifier.objects.filter(article=a, id_type='doi').exists():
-                            print(f'Deleting old DOIs')
                             Identifier.objects.filter(article=a, id_type='doi').delete()
                         doi_options = {
                             'id_type': 'doi',

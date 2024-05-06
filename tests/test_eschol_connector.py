@@ -71,7 +71,7 @@ class EscholConnectorTest(TestCase):
         j, e = get_article_json(self.article, get_unit(self.journal))
 
         self.assertEqual(j['id'], 'ark:/13030/qtXXXXXXXX')
-        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/", j["contentLink"])
+        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/", j["contentLink"])
         self.assertEqual(j["contentFileName"], 'qtXXXXXXXX.html')
 
         self.assertEqual(len(j['suppFiles']), 2)
@@ -79,18 +79,18 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j['suppFiles'][0]['file'], 'qtXXXXXXXX.xml')
         self.assertEqual(j['suppFiles'][0]['contentType'], 'application/xml')
         self.assertEqual(j['suppFiles'][0]['size'], 157291)
-        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{xml_obj.pk}/?access=", j['suppFiles'][0]['fetchLink'])
+        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/{xml_obj.pk}/?access=", j['suppFiles'][0]['fetchLink'])
         self.assertEqual(j['suppFiles'][0]['title'], '[XML] Test Article from Utils Testing Helpers')
 
         self.assertEqual(j['suppFiles'][1]['file'], 'test.pdf')
         self.assertEqual(j['suppFiles'][1]['contentType'], 'application/pdf')
         self.assertEqual(j['suppFiles'][1]['size'], 4)
-        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{pdf_obj.pk}/?access=", j['suppFiles'][1]['fetchLink'])
+        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/{pdf_obj.pk}/?access=", j['suppFiles'][1]['fetchLink'])
         #self.assertEqual(j['suppFiles'][1]['title'], '')
 
         self.assertEqual(len(j['imgFiles']), 1)
         self.assertEqual(j['imgFiles'][0]['file'], 'test.png')
-        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{img_obj.pk}/?access=", j['imgFiles'][0]['fetchLink'])
+        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/{img_obj.pk}/?access=", j['imgFiles'][0]['fetchLink'])
 
     def test_galley(self):
 
@@ -99,7 +99,7 @@ class EscholConnectorTest(TestCase):
 
         j, e = get_article_json(self.article, get_unit(self.journal))
 
-        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{f.pk}/?access=", j["contentLink"])
+        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/{f.pk}/?access=", j["contentLink"])
         self.assertEqual(j["contentFileName"], "test.pdf")
 
     def test_supp_files(self):
@@ -134,12 +134,12 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j['suppFiles'][0]['file'], 'test.pdf')
         self.assertEqual(j['suppFiles'][0]['contentType'], 'application/pdf')
         self.assertEqual(j['suppFiles'][0]['size'], 4)
-        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{tf1.pk}/?access=", j['suppFiles'][0]['fetchLink'])
+        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/{tf1.pk}/?access=", j['suppFiles'][0]['fetchLink'])
 
         self.assertEqual(j['suppFiles'][1]['file'], 'test.xml')
         self.assertEqual(j['suppFiles'][1]['contentType'], 'application/xml')
         self.assertEqual(j['suppFiles'][1]['size'], 250)
-        self.assertIn(f"http://localhost/TST/plugins/eschol/download/{self.article.pk}/file/{tf2.pk}/?access=", j['suppFiles'][1]['fetchLink'])
+        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/{tf2.pk}/?access=", j['suppFiles'][1]['fetchLink'])
 
 
     def test_invalid_license(self):
