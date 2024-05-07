@@ -491,6 +491,7 @@ def send_article(article, is_configured=False, request=None):
 def send_issue_meta(issue, is_configured=False):
     if issue.cover_image and issue.cover_image.url:
         unit = get_unit(issue.journal)
+
         # media are hosted at ://domain/media not ://domain/site_code/media
         # this is the most consistent way I can find to generate this url
         j = issue.journal
@@ -499,14 +500,16 @@ def send_issue_meta(issue, is_configured=False):
                                           port=None,
                                           path=issue.cover_image.url)
         variables = {"input": {"journal": unit,
-                               "issue": str(issue.issue),
+                               "issue": int(issue.issue),
                                "volume": issue.volume,
                                "coverImageURL": cover_url}}
 
         if is_configured:
             r = send_to_eschol(issue_query, variables)
             d = json.loads(r.text)
-            if d["data"]["updateIssue"]["message"] == "Cover Image uploaded":
+            if "errors" in d:
+                return False, ";".join([x["message"] for x in d["errors"]])
+            elif "data" in d and d["data"]["updateIssue"]["message"] == "Cover Image uploaded":
                 return True, "Cover Image uploaded"
             else:
                 return False, r.text
