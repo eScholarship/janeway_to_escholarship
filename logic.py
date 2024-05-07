@@ -499,10 +499,13 @@ def send_issue_meta(issue, is_configured=False):
                                           scheme=j.press.SCHEMES[j.press.is_secure],
                                           port=None,
                                           path=issue.cover_image.url)
-        variables = {"input": {"journal": unit,
-                               "issue": int(issue.issue),
-                               "volume": issue.volume,
-                               "coverImageURL": cover_url}}
+        try:
+            variables = {"input": {"journal": unit,
+                                   "issue": int(issue.issue),
+                                   "volume": issue.volume,
+                                   "coverImageURL": cover_url}}
+        except ValueError:
+            return False, f"Cannot upload cover images for non-integer issue number {issue.issue}"
 
         if is_configured:
             r = send_to_eschol(issue_query, variables)
