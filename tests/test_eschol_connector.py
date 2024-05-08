@@ -337,6 +337,24 @@ class EscholConnectorTest(TestCase):
         self.assertTrue(success)
         debug_mock.assert_called_once_with(msg)
 
+    def test_issue_meta_bad_issue(self):
+        issue = helpers.create_issue(self.journal, articles=[self.article], number="1-2")
+        svg_data = """
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+        """
+        svg_file = SimpleUploadedFile(
+            "file.svg",
+            svg_data.encode("utf-8"),
+        )
+        issue.cover_image = svg_file
+        issue.save()
+
+        success, msg = send_issue_meta(issue)
+        self.assertFalse(success)
+        self.assertEqual(msg, "Cannot upload cover images for non-integer issue number 1-2")
+
     def test_article_unexpected_error(self):
         # pass a non-article so we know it'll generate an unexpected error
         epub, error = article_to_eschol(article=self.journal)
