@@ -14,8 +14,8 @@ from submission.models import STAGE_PUBLISHED, Licence, Keyword, Funder, Field, 
 from core.models import File, SupplementaryFile
 from core.files import save_file
 
-from django.core.management import call_command
-#from django.contrib.messages import get_messages
+# these imports are needed to make sure plugin urls are loaded
+from core import models as core_models, urls
 
 from eschol.logic import *
 
@@ -24,10 +24,6 @@ class EscholConnectorTest(TestCase):
     def setUp(self):
         # unconfigure ESCHOL API to start
         del settings.ESCHOL_API_URL
-
-        # we need to install the plugin else the reverse call
-        # to get the download file link will fail
-        call_command('install_plugins', 'eschol')
 
         self.user = helpers.create_user("user1@test.edu")
         self.request = helpers.Request()
