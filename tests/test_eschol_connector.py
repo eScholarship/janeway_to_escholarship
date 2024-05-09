@@ -297,6 +297,20 @@ class EscholConnectorTest(TestCase):
         epub, error = article_to_eschol(article=self.article)
         debug_mock.assert_called_once_with(f"Escholarhip Deposit for Article {self.article.pk}: {{'item': {{'sourceName': 'janeway', 'sourceID': '{self.article.pk}', 'sourceURL': 'localhost', 'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', 'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, 'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], 'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', 'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', 'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{{'id': 'janeway_{self.article.pk}', 'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}")
 
+    def test_private_render_galley(self):
+        issue = helpers.create_issue(self.journal, articles=[self.article])
+        f = File.objects.create(article_id=self.article.pk, label="file", is_galley=True, original_filename="test.pdf", mime_type="application/pdf", uuid_filename="uuid.pdf")
+        galley = helpers.create_galley(self.article, file_obj=f, public=False)
+
+        self.article.primary_issue = issue
+        self.article.issues.add(issue)
+        self.article.render_galley = galley
+        self.article.save()
+        epub, error = send_article(self.article, False, None)
+
+        self.assertIsNone(epub)
+        self.assertEqual(error, f"Private render galley selected for {self.article}")
+
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
     def test_issue_to_eschol(self, debug_mock):
         issue = helpers.create_issue(self.journal, articles=[self.article])
@@ -337,7 +351,7 @@ class EscholConnectorTest(TestCase):
         self.assertTrue(success)
         debug_mock.assert_called_once_with(msg)
 
-    def test_issue_meta_bad_issue(self):
+    def test_issue_cover_bad_issue(self):
         issue = helpers.create_issue(self.journal, articles=[self.article], number="1-2")
         svg_data = """
             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">

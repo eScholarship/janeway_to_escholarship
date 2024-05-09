@@ -327,6 +327,7 @@ def get_article_json(article, unit):
         item["grants"] = funders
 
     rg = article.get_render_galley
+
     if not rg and article.galley_set.filter(file__mime_type="application/pdf", public=True).exists():
         rg = article.galley_set.filter(file__mime_type="application/pdf", public=True)\
                                .order_by("sequence",)[0]
@@ -440,6 +441,13 @@ def send_article(article, is_configured=False, request=None):
 
     if not article.title:
         msg = f'{article} published without title'
+        logger.info(msg)
+        if request: messages.error(request, msg)
+        return None, msg
+
+    rg = article.get_render_galley
+    if rg and not rg.public:
+        msg = f'Private render galley selected for {article}'
         logger.info(msg)
         if request: messages.error(request, msg)
         return None, msg
