@@ -299,12 +299,15 @@ def get_article_json(article, unit):
 
     authors = []
     for fa in article.frozen_authors().all():
-        parts = {"fname": fa.first_name,
-                "lname": fa.last_name}
-        if fa.institution:
-            parts.update({"institution": fa.institution})
-        if fa.middle_name:
-            parts.update({"mname": fa.middle_name})
+        if fa.is_corporate:
+            parts = {"organization": fa.institution}
+        else:
+            parts = {"fname": fa.first_name,
+                     "lname": fa.last_name}
+            if fa.institution:
+                parts.update({"institution": fa.institution})
+            if fa.middle_name:
+                parts.update({"mname": fa.middle_name})
         author = {
             "nameParts": parts
         }

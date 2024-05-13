@@ -13,6 +13,7 @@ import utils, os
 from submission.models import STAGE_PUBLISHED, Licence, Keyword, Funder, Field, FieldAnswer
 from core.models import File, SupplementaryFile
 from core.files import save_file
+from submission.models import FrozenAuthor
 
 # these imports are needed to make sure plugin urls are loaded
 from core import models as core_models, urls
@@ -206,6 +207,7 @@ class EscholConnectorTest(TestCase):
                                                    url="https://creativecommons.org/licenses/by/4.0")
         license.save()
         author = helpers.create_author(self.journal)
+        corporate_author  = FrozenAuthor.objects.create(article=self.article, institution="Author Collective", is_corporate=True, order=2)
         funder, _ = Funder.objects.get_or_create(name="Test Funder", fundref_id="http://dx.doi.org/10.13039/501100021082")
         funder.save()
 
@@ -263,12 +265,13 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["orderInSection"], 10001)
         self.assertEqual(len(j["localIDs"]), 1)
         self.assertEqual(j["localIDs"][0]["id"], f'janeway_{self.article.pk}')
-        self.assertEqual(len(j["authors"]), 1)
+        self.assertEqual(len(j["authors"]), 2)
         self.assertEqual(j["authors"][0]['nameParts']['fname'], "Author")
         self.assertEqual(j["authors"][0]['nameParts']['lname'], "User")
         self.assertEqual(j["authors"][0]['nameParts']['institution'], "Author institution")
         self.assertEqual(j["authors"][0]['nameParts']['mname'], "A")
         self.assertEqual(j["authors"][0]['email'], "authoruser@martineve.com")
+        self.assertEqual(j["authors"][1]['nameParts']['organization'], "Author Collective")
         self.assertEqual(len(j["grants"]), 1)
         self.assertEqual(j["grants"][0]["name"], "Test Funder")
         self.assertEqual(j["grants"][0]["reference"], "http://dx.doi.org/10.13039/501100021082")
