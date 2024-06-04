@@ -13,6 +13,7 @@ import utils, os
 from submission.models import STAGE_PUBLISHED, Licence, Keyword, Funder, Field, FieldAnswer
 from core.models import File, SupplementaryFile
 from core.files import save_file
+from submission.models import FrozenAuthor
 
 # these imports are needed to make sure plugin urls are loaded
 from core import models as core_models, urls
@@ -206,6 +207,7 @@ class EscholConnectorTest(TestCase):
                                                    url="https://creativecommons.org/licenses/by/4.0")
         license.save()
         author = helpers.create_author(self.journal)
+        corporate_author  = FrozenAuthor.objects.create(article=self.article, institution="Author Collective", is_corporate=True, order=2)
         funder, _ = Funder.objects.get_or_create(name="Test Funder", fundref_id="http://dx.doi.org/10.13039/501100021082")
         funder.save()
 
@@ -263,12 +265,13 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["orderInSection"], 10001)
         self.assertEqual(len(j["localIDs"]), 1)
         self.assertEqual(j["localIDs"][0]["id"], f'janeway_{self.article.pk}')
-        self.assertEqual(len(j["authors"]), 1)
+        self.assertEqual(len(j["authors"]), 2)
         self.assertEqual(j["authors"][0]['nameParts']['fname'], "Author")
         self.assertEqual(j["authors"][0]['nameParts']['lname'], "User")
         self.assertEqual(j["authors"][0]['nameParts']['institution'], "Author institution")
         self.assertEqual(j["authors"][0]['nameParts']['mname'], "A")
         self.assertEqual(j["authors"][0]['email'], "authoruser@martineve.com")
+        self.assertEqual(j["authors"][1]['nameParts']['organization'], "Author Collective")
         self.assertEqual(len(j["grants"]), 1)
         self.assertEqual(j["grants"][0]["name"], "Test Funder")
         self.assertEqual(j["grants"][0]["reference"], "http://dx.doi.org/10.13039/501100021082")
@@ -296,6 +299,20 @@ class EscholConnectorTest(TestCase):
         self.article.save()
         epub, error = article_to_eschol(article=self.article)
         debug_mock.assert_called_once_with(f"Escholarhip Deposit for Article {self.article.pk}: {{'item': {{'sourceName': 'janeway', 'sourceID': '{self.article.pk}', 'sourceURL': 'localhost', 'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', 'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, 'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], 'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', 'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', 'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{{'id': 'janeway_{self.article.pk}', 'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}")
+
+    def test_private_render_galley(self):
+        issue = helpers.create_issue(self.journal, articles=[self.article])
+        f = File.objects.create(article_id=self.article.pk, label="file", is_galley=True, original_filename="test.pdf", mime_type="application/pdf", uuid_filename="uuid.pdf")
+        galley = helpers.create_galley(self.article, file_obj=f, public=False)
+
+        self.article.primary_issue = issue
+        self.article.issues.add(issue)
+        self.article.render_galley = galley
+        self.article.save()
+        epub, error = send_article(self.article, False, None)
+
+        self.assertIsNone(epub)
+        self.assertEqual(error, f"Private render galley selected for {self.article}")
 
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
     def test_issue_to_eschol(self, debug_mock):
@@ -337,7 +354,7 @@ class EscholConnectorTest(TestCase):
         self.assertTrue(success)
         debug_mock.assert_called_once_with(msg)
 
-    def test_issue_meta_bad_issue(self):
+    def test_issue_cover_bad_issue(self):
         issue = helpers.create_issue(self.journal, articles=[self.article], number="1-2")
         svg_data = """
             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
