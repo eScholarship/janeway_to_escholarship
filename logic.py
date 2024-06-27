@@ -409,7 +409,7 @@ def register_doi(article, epub, request):
         else:
             enabled, success, result_text = update_journal_doi(article, request)
         if enabled:
-            epub.is_doi_registered = success
+            epub.is_doi_registered = success or epub.is_doi_registered
             epub.doi_result_text = result_text
             epub.save()
     except ImportError or ModuleNotFoundError:
