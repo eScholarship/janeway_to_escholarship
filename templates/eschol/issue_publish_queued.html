@@ -1,0 +1,23 @@
+{% extends "admin/core/base.html" %}
+{% load foundation %}
+
+{% block title %}{{ plugin_name }} -- Publish request queued{% endblock %}
+
+{% block breadcrumbs %}
+    {{ block.super }}
+    <li><a href="{% url 'eschol_manager' %}">{{ plugin_name }}</a></li>
+    <li><a href="{% url 'eschol_list_articles' issue.pk %}">Publish Issue</a></li>
+    <li>Publish request queued</li>
+{% endblock breadcrumbs %}
+
+{% block body %}
+<div class="box">
+    <div class="title-area">
+        <h2>Publish request queued</h2>
+    </div>
+    <div>
+        <p>Publish request queued for {{issue}}.</p>  
+        <p>The request will start processing in approximatedly 1 minute.  It may take up to 30 minutes to appear in eScholarship.</p>
+    </div>
+</div>
+{% endblock body %}
