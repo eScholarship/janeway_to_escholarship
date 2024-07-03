@@ -14,22 +14,45 @@ from datetime import datetime, timedelta
 
 from .models import AccessToken
 
-from .logic import issue_to_eschol, article_to_eschol
+from .logic import article_to_eschol, send_issue_meta, send_article, is_configured
 from .plugin_settings import PLUGIN_NAME
 
 from django_q.tasks import async_task
 from django_q.tasks import fetch_group
 
+def publish_article(article, configured, retry=False):
+    try:
+        return send_article(article, configured)
+    except Exception as e:
+        if "Mysql2::Error: Deadlock" in e and not retry:
+            publish_article(article, configured, True)
+        else:
+            return None, f"Failed to publish {article.pk} due to deadlock conditions"
+
 def publish_issue_task(issue_id):
     issue = Issue.objects.get(pk=issue_id)
-    epubs, errors = issue_to_eschol(issue=issue)
+    configured = is_configured()
+    errors = []
+    articles_published = 0
+    if not configured:
+        return {"success": False, "result": "eScholarship API not configured"}
+    success, msg = send_issue_meta(issue, configured)
+    if not success:
+        errors.append(msg)
+
+    for a in issue.get_sorted_articles():
+        obj, error = publish_article(a, configured)
+        if error:
+            errors.append(error)
+        else:
+            articles_published += 1
+
     if len(errors) > 0:
         return {"success": False, "result": f'Failed to publish {issue}: {";".join(errors)}'}
     else:
-        return {"success": True, "result": f"Published {len(epubs)} articles in {issue}"}
+        return {"success": True, "result": f"Published {len(articles_published)} articles in {issue}"}
 
 def publish_issue_result(task):
-    print("publish issue result")
     result = task.result
     task.success = result["success"]
     task.result = result["result"]
