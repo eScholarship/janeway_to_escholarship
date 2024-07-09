@@ -20,12 +20,12 @@ from .plugin_settings import PLUGIN_NAME
 from django_q.tasks import async_task
 from django_q.tasks import fetch_group
 
-def publish_article(article, configured, retry=False):
+def do_publish_article(article, configured, retry=False):
     try:
         return send_article(article, configured)
     except Exception as e:
         if "Mysql2::Error: Deadlock" in e and not retry:
-            publish_article(article, configured, True)
+            do_publish_article(article, configured, True)
         else:
             return None, f"Failed to publish {article.pk} due to deadlock conditions"
 
@@ -41,7 +41,7 @@ def publish_issue_task(issue_id):
         errors.append(msg)
 
     for a in issue.get_sorted_articles():
-        obj, error = publish_article(a, configured)
+        obj, error = do_publish_article(a, configured)
         if error:
             errors.append(error)
         else:
