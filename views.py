@@ -50,7 +50,7 @@ def publish_issue_task(issue_id):
     if len(errors) > 0:
         return {"success": False, "result": f'Failed to publish {issue}: {";".join(errors)}'}
     else:
-        return {"success": True, "result": f"Published {len(articles_published)} articles in {issue}"}
+        return {"success": True, "result": f"Published {articles_published} articles in {issue}"}
 
 def publish_issue_result(task):
     result = task.result
