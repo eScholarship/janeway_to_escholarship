@@ -62,24 +62,22 @@
             {% endfor %}
             </tbody>
         </table>
-        {% if tasks|length > 0 %}
+        {% if pub_history|length > 0 %}
         <h3>Issue publication history</h3>
         <table class="table table-bordered small" id="eschol_publish_articles">
             <thead>
             <tr>
-                <th>Started</th>
-                <th>Stopped</th>
+                <th>Date</th>
                 <th>Successful</th>
                 <th>Result</th>
             </tr>
             </thead>
             <tbody>
-                {% for t in tasks %}
+                {% for p in pub_history %}
                 <tr>
-                    <td>{{ t.started }}</td>
-                    <td>{{ t.stopped }}</td>
-                    <td>{% if t.success %}<img src="/static/admin/img/icon-yes.svg" alt="True">{% else %}<img src="/static/admin/img/icon-no.svg" alt="False">{% endif %}</td>
-                    <td>{{ t.result }}</td>
+                    <td>{{ p.date }}</td>
+                    <td>{% if p.success %}<img src="/static/admin/img/icon-yes.svg" alt="True">{% else %}<img src="/static/admin/img/icon-no.svg" alt="False">{% endif %}</td>
+                    <td>{% if p.success %}{{ p }}{% else %}{{ t.result }}{% endif %}</td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -12,57 +12,22 @@ from django.http import HttpResponseForbidden
 
 from datetime import datetime, timedelta
 
-from .models import AccessToken
+from .models import AccessToken, IssuePublicationHistory, EscholArticle
 
-from .logic import article_to_eschol, send_issue_meta, send_article, is_configured
+from .logic import article_to_eschol, issue_to_eschol
 from .plugin_settings import PLUGIN_NAME
 
 from django_q.tasks import async_task
-from django_q.tasks import fetch_group
-
-def do_publish_article(article, configured, retry=False):
-    try:
-        return send_article(article, configured)
-    except Exception as e:
-        if "Mysql2::Error: Deadlock" in e and not retry:
-            do_publish_article(article, configured, True)
-        else:
-            return None, f"Failed to publish {article.pk} due to deadlock conditions"
 
 def publish_issue_task(issue_id):
     issue = Issue.objects.get(pk=issue_id)
-    configured = is_configured()
-    errors = []
-    articles_published = 0
-    if not configured:
-        return {"success": False, "result": "eScholarship API not configured"}
-    success, msg = send_issue_meta(issue, configured)
-    if not success:
-        errors.append(msg)
-
-    for a in issue.get_sorted_articles():
-        obj, error = do_publish_article(a, configured)
-        if error:
-            errors.append(error)
-        else:
-            articles_published += 1
-
-    if len(errors) > 0:
-        return {"success": False, "result": f'Failed to publish {issue}: {";".join(errors)}'}
-    else:
-        return {"success": True, "result": f"Published {articles_published} articles in {issue}"}
-
-def publish_issue_result(task):
-    result = task.result
-    task.success = result["success"]
-    task.result = result["result"]
-    task.hook = None
-    task.save()
+    ipub = issue_to_eschol(issue=issue)
+    return str(ipub)
 
 def publish_issue(request, issue_id):
     template = 'eschol/issue_publish_queued.html'
     issue = get_object_or_404(Issue, pk=issue_id)
-    async_task('plugins.eschol.views.publish_issue_task', issue_id, group=issue_id, hook='plugins.eschol.views.publish_issue_result')
+    async_task('plugins.eschol.views.publish_issue_task', issue_id, group=issue_id)
     context = {'plugin_name': PLUGIN_NAME,
                'issue': issue}
     return render(request, template, context)
@@ -70,14 +35,15 @@ def publish_issue(request, issue_id):
 def publish_article(request, article_id):
     template = 'eschol/published.html'
     article = get_object_or_404(Article, pk=article_id)
-    epub, error = article_to_eschol(request=request, article=article)
+    pub_history  = article_to_eschol(request=request, article=article)
+    epub = EscholArticle.objects.get(article=article)
     context = {
         'plugin_name': PLUGIN_NAME,
         'obj': article,
-        'objs': [epub] if epub else [],
-        'errors': [error] if error else [],
+        'pub_history': pub_history,
         'issue': article.issue,
-        'obj_name': "Article"
+        'obj_name': "Article",
+        'epub': epub
     }
     return render(request, template, context)
 
@@ -88,7 +54,7 @@ def list_articles(request, issue_id):
         'plugin_name': PLUGIN_NAME,
         'issue': issue,
         'articles': issue.get_sorted_articles(),
-        'tasks': fetch_group(issue_id),
+        'pub_history': issue.issuepublicationhistory_set.all().order_by('-date')
     }
 
     return render(request, template, context)

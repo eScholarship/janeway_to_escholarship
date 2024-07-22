@@ -19,6 +19,8 @@ from utils import logic as utils_logic
 from utils.logger import get_logger
 logger = get_logger(__name__)
 
+import time
+
 valid_rights = ["https://creativecommons.org/licenses/by/4.0/",
                 "https://creativecommons.org/licenses/by-sa/4.0/",
                 "https://creativecommons.org/licenses/by-nd/4.0/",
@@ -84,6 +86,9 @@ def send_to_eschol(query, variables):
     params = {'access': settings.ESCHOL_ACCESS_TOKEN}
     headers = {"Privileged": settings.ESCHOL_PRIV_KEY}
     r = requests.post(url, params=params, json={'query': query, 'variables': variables}, headers=headers)
+    if "Mysql2::Error: Deadlock" in r.text:
+        time.sleep(5)
+        send_to_eschol(query, variables)
     return r
 
 def get_provisional_id(article):
@@ -421,39 +426,31 @@ def register_doi(article, epub, request):
         logger.error(e, exc_info=True)
         if request: messages.error(request, msg)
 
+def article_error(article, request, msg):
+    logger.info(msg)
+    if request: messages.error(request, msg)
+    return ArticlePublicationHistory.objects.create(article=article,
+                                                    success=False,
+                                                    result=msg)
+
 def send_article(article, is_configured=False, request=None):
     unit = get_unit(article.journal)
 
     if not article.is_published:
-        msg = f'{article} is not published'
-        logger.info(msg)
-        if request: messages.error(request, msg)
-        return None, msg
+        return article_error(article, request, f'{article} is not published')
 
     if not article.issue:
-        msg = f'{article} published without issue'
-        logger.info(msg)
-        if request: messages.error(request, msg)
-        return None, msg
+        return article_error(article, request, f'{article} published without issue')
 
     if not article.owner:
-        msg = f'{article} published without owner'
-        logger.info(msg)
-        if request: messages.error(request, msg)
-        return None, msg
+        return article_error(article, request, f'{article} published without owner')
 
     if not article.title:
-        msg = f'{article} published without title'
-        logger.info(msg)
-        if request: messages.error(request, msg)
-        return None, msg
+        return article_error(article, request, f'{article} published without title')
 
     rg = article.get_render_galley
     if rg and not rg.public:
-        msg = f'Private render galley selected for {article}'
-        logger.info(msg)
-        if request: messages.error(request, msg)
-        return None, msg
+        return article_error(article, request, f'Private render galley selected for {article}')
 
     item, epub = get_article_json(article, unit)
     if epub:
@@ -485,21 +482,22 @@ def send_article(article, is_configured=False, request=None):
                     if request: messages.warning(request, msg)
             else:
                 error_msg = f'ERROR sending Article {article.pk} to eScholarship: {data["errors"]}'
-                logger.error(error_msg)
-                if request: messages.error(request, error_msg)
-                return None, error_msg
+                return article_error(article, request, error_msg)
         except json.decoder.JSONDecodeError:
+            msg = f"An unexpected API error occured sending {article} to eScholarship"
+            apub = article_error(article, request)
             logger.error(r.text)
-            return None, f"An unexpected API error occured sending {article} to eScholarship"
+            return apub
     else:
         logger.debug(f'Escholarhip Deposit for Article {article.pk}: {variables}')
         msg = f"eScholarship API not configured: {article} not sent"
-        if request: messages.error(request, msg)
-        return None, msg
+        return article_error(article, request, msg)
 
-    return epub, None
+    return ArticlePublicationHistory.objects.create(article=article, success=True,)
 
 def send_issue_meta(issue, is_configured=False):
+    success = False
+    msg = None
     if issue.cover_image and issue.cover_image.url:
         unit = get_unit(issue.journal)
 
@@ -516,22 +514,31 @@ def send_issue_meta(issue, is_configured=False):
                                    "volume": issue.volume,
                                    "coverImageURL": cover_url}}
         except ValueError:
-            return False, f"Cannot upload cover images for non-integer issue number {issue.issue}"
+            success = False
+            msg = f"Cannot upload cover images for non-integer issue number {issue.issue}"
+            return success, msg
 
         if is_configured:
             r = send_to_eschol(issue_query, variables)
             d = json.loads(r.text)
             if "errors" in d:
-                return False, ";".join([x["message"] for x in d["errors"]])
+                success = False
+                msg = ";".join([x["message"] for x in d["errors"]])
             elif "data" in d and d["data"]["updateIssue"]["message"] == "Cover Image uploaded":
-                return True, "Cover Image uploaded"
+                success = True
+                msg = d["data"]["updateIssue"]["message"]
             else:
-                return False, r.text
+                success = False
+                msg = r.text
         else:
+            success = True
             msg = f'Escholarship deposit {issue}: {variables}'
             logger.debug(msg)
-            return True, msg
-    return True, "No cover image"
+    else:
+        success = True
+        msg = "No cover image"
+
+    return success, msg
 
 def is_configured():
     if hasattr(settings, 'ESCHOL_API_URL'):
@@ -544,27 +551,23 @@ def issue_to_eschol(**options):
     request = options.get("request")
     issue = options.get("issue")
     configured = is_configured()
-    objs = []
-    errors = []
 
     try:
         success, msg = send_issue_meta(issue, configured)
-        if not success:
-            errors.append(msg)
+
+        ipub = IssuePublicationHistory.objects.create(issue=issue, success=success, result=msg)
 
         for a in issue.get_sorted_articles():
-            obj, error = send_article(a, configured, request)
-            if obj:
-                objs.append(obj)
-            else:
-                errors.append(error)
+            apub = send_article(a, configured, request)
+            apub.issue_pub = ipub
+            apub.save()
     except Exception as e:
         msg = f'An unexpected error occured when sending {issue} to eScholarship: {e}'
         logger.error(e, exc_info=True)
         if request: messages.error(request, msg)
-        errors.append(msg)
+        ipub = IssuePublicationHistory.objects.create(issue=issue, success=False, result=msg)
 
-    return objs, errors
+    return ipub
 
 def article_to_eschol(**options):
     request = options.get('request')
@@ -575,7 +578,4 @@ def article_to_eschol(**options):
         return send_article(article, configured, request)
     except Exception as e:
         msg = f'An unexpected error occured when sending {article} to eScholarship: {e}'
-        logger.error(e, exc_info=True)
-        if request: messages.error(request, msg)
-
-    return None, msg
+        return article_error(article, request, msg)

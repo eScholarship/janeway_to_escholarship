@@ -31,6 +31,9 @@ class EscholArticle(models.Model):
     def get_eschol_url(self):
         return "{}uc/item/{}".format(settings.JSCHOL_URL, self.get_short_ark())
 
+    def has_doi_error(self):
+        return not (self.is_doi_registered and ("success" in self.doi_result_text or not self.doi_result_text))
+
 class AccessToken(models.Model):
     token = models.CharField(max_length=50)
     date = models.DateField(auto_now_add=True)
@@ -40,3 +43,30 @@ class AccessToken(models.Model):
     def generate_token(self):
         self.token = token_urlsafe(32)
         self.save()
+
+class ArticlePublicationHistory(models.Model):
+    date = models.DateTimeField(auto_now_add=True)
+    article = models.ForeignKey('submission.Article', on_delete=models.CASCADE)
+    issue_pub = models.ForeignKey('IssuePublicationHistory', blank=True, null=True, on_delete=models.CASCADE)
+    success = models.BooleanField()
+    result = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        success = "successful" if self.success else "failed"
+        s = f"{self.article} publication {success} on {self.date}"
+        if self.issue_pub:
+            s += f" with {self.issue_pub.issue}"
+        return s
+
+class IssuePublicationHistory(models.Model):
+    date = models.DateTimeField(auto_now_add=True)
+    issue = models.ForeignKey('journal.Issue', on_delete=models.CASCADE)
+    success = models.BooleanField()
+    result = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        total_success = self.articlepublicationhistory_set.filter(success=True).count()
+        total = self.articlepublicationhistory_set.all().count()
+        success = "successful" if self.success else "failed"
+
+        return f"{self.issue} publication {success} on {self.date}: {total_success} of {total} articles published."
