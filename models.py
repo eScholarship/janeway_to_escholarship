@@ -68,7 +68,7 @@ class IssuePublicationHistory(models.Model):
     result = models.TextField(null=True, blank=True)
 
     def result_text(self):
-        if self.result:
+        if self.result and not self.success:
             return self.result
         else:
             total_success = self.articlepublicationhistory_set.filter(success=True).count()
