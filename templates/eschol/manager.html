@@ -27,6 +27,7 @@
             </thead>
             <tbody>
             {% for issue in issues %}
+                <tr>
                 <td><a href="{% url 'manage_issues_id' issue.pk %}">{{issue.pk}}</a></td>
                 <td><a href="{% url 'eschol_list_articles' issue.pk %}">{% include "eschol/includes/issue.html" with issue=issue %}</a></td>
                 {% with history=issue.issuepublicationhistory_set.all %}
@@ -41,6 +42,7 @@
                 {% endif %}
                 {% endwith %}
                 <td><a class="button" href="{% url 'eschol_publish_issue' issue.pk %}">Publish Full Issue</a></td>
+                </tr>
             {% endfor %}
             </tbody>
         </table>
