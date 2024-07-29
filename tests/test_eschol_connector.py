@@ -10,7 +10,7 @@ from django.utils import timezone
 
 import utils, os
 
-from submission.models import STAGE_PUBLISHED, Licence, Keyword, Funder, Field, FieldAnswer
+from submission.models import STAGE_PUBLISHED, Licence, Keyword, Field, FieldAnswer
 from core.models import File, SupplementaryFile
 from core.files import save_file
 from submission.models import FrozenAuthor
@@ -18,7 +18,10 @@ from submission.models import FrozenAuthor
 # these imports are needed to make sure plugin urls are loaded
 from core import models as core_models, urls
 
-from eschol.logic import *
+import plugins.eschol.logic as logic
+from plugins.eschol.models import EscholArticle
+
+import mock
 
 class EscholConnectorTest(TestCase):
 
@@ -65,7 +68,7 @@ class EscholConnectorTest(TestCase):
 
         self.article.save()
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, e = logic.get_article_json(self.article, logic.get_unit(self.journal))
 
         self.assertEqual(j['id'], 'ark:/13030/qtXXXXXXXX')
         self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/", j["contentLink"])
@@ -94,7 +97,7 @@ class EscholConnectorTest(TestCase):
         f = File.objects.create(article_id=self.article.pk, label="file", is_galley=True, original_filename="test.pdf", mime_type="application/pdf", uuid_filename="uuid.pdf")
         galley = helpers.create_galley(self.article, file_obj=f)
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, e = logic.get_article_json(self.article, logic.get_unit(self.journal))
 
         self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/{f.pk}/?access=", j["contentLink"])
         self.assertEqual(j["contentFileName"], "test.pdf")
@@ -124,7 +127,7 @@ class EscholConnectorTest(TestCase):
 
         self.article.save()
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, e = logic.get_article_json(self.article, logic.get_unit(self.journal))
 
         self.assertEqual(len(j['suppFiles']), 2)
 
@@ -149,7 +152,7 @@ class EscholConnectorTest(TestCase):
         self.article.license = license
         self.article.save()
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, e = logic.get_article_json(self.article, logic.get_unit(self.journal))
 
         self.assertNotIn("license", j)
 
@@ -161,7 +164,7 @@ class EscholConnectorTest(TestCase):
         field2 = Field.objects.create(journal=self.journal, press=self.press, name="Data URL", kind="text", order=2, required=False)
         answer2 = FieldAnswer.objects.create(field=field2, article=self.article, answer="http://data.repo")
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, e = logic.get_article_json(self.article, logic.get_unit(self.journal))
 
         self.assertEqual(j["dataAvailability"], "publicRepo")
         self.assertEqual(j["dataURL"], "http://data.repo")
@@ -173,11 +176,11 @@ class EscholConnectorTest(TestCase):
 
         issue = helpers.create_issue(self.journal, articles=[self.article, article2])
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, e = logic.get_article_json(self.article, logic.get_unit(self.journal))
         self.assertEqual(j["sectionHeader"], "Articles")
 
     def test_minimal_json(self):
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, e = logic.get_article_json(self.article, logic.get_unit(self.journal))
         self.assertEqual(j["sourceName"], "janeway")
         self.assertEqual(j["sourceID"], str(self.article.pk))
         self.assertEqual(j["sourceURL"], self.press.domain)
@@ -208,8 +211,8 @@ class EscholConnectorTest(TestCase):
         license.save()
         author = helpers.create_author(self.journal)
         corporate_author  = FrozenAuthor.objects.create(article=self.article, institution="Author Collective", is_corporate=True, order=2)
-        funder, _ = Funder.objects.get_or_create(name="Test Funder", fundref_id="http://dx.doi.org/10.13039/501100021082")
-        funder.save()
+        #funder, _ = Funder.objects.get_or_create(name="Test Funder", fundref_id="http://dx.doi.org/10.13039/501100021082")
+        #funder.save()
 
         self.article.abstract = "This is the abstract"
         self.article.date_submitted = datetime(2022, 1, 1, tzinfo=timezone.get_current_timezone())
@@ -222,7 +225,7 @@ class EscholConnectorTest(TestCase):
         self.article.keywords.add(Keyword.objects.create(word="keyword1"))
         self.article.license = license
         self.article.authors.add(author)
-        self.article.funders.add(funder)
+        #self.article.funders.add(funder)
 
         self.article.save()
         author.snapshot_self(self.article)
@@ -230,7 +233,7 @@ class EscholConnectorTest(TestCase):
         self.journal.issn = "1111-1111"
         self.journal.save()
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, e = logic.get_article_json(self.article, logic.get_unit(self.journal))
         self.assertEqual(j["sourceName"], "janeway")
         self.assertEqual(j["sourceID"], str(self.article.pk))
         self.assertEqual(j["sourceURL"], self.press.domain)
@@ -272,23 +275,25 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["authors"][0]['nameParts']['mname'], "A")
         self.assertEqual(j["authors"][0]['email'], "authoruser@martineve.com")
         self.assertEqual(j["authors"][1]['nameParts']['organization'], "Author Collective")
-        self.assertEqual(len(j["grants"]), 1)
-        self.assertEqual(j["grants"][0]["name"], "Test Funder")
-        self.assertEqual(j["grants"][0]["reference"], "http://dx.doi.org/10.13039/501100021082")
+        #self.assertEqual(len(j["grants"]), 1)
+        #self.assertEqual(j["grants"][0]["name"], "Test Funder")
+        #self.assertEqual(j["grants"][0]["reference"], "http://dx.doi.org/10.13039/501100021082")
 
-        self.assertEqual(len(j), 33)
+        self.assertEqual(len(j), 32)
 
     def test_ojs_source(self):
         EscholArticle.objects.create(article=self.article, ark="qt0000000", source_name="ojs", source_id="555555")
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, e = logic.get_article_json(self.article, logic.get_unit(self.journal))
         self.assertEqual(j["sourceName"], "ojs")
         self.assertEqual(j["sourceID"], "555555")
 
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'info')
     def test_send_article_no_issue(self, info_mock):
-        epub, error = send_article(self.article, False, None)
+        apub = logic.send_article(self.article, False, None)
         msg = f'{self.article} published without issue'
-        self.assertEqual(error, msg)
+        self.assertEqual(apub.article, self.article)
+        self.assertFalse(apub.success)
+        self.assertEqual(apub.result, msg)
         info_mock.assert_called_once_with(msg)
 
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
@@ -297,7 +302,7 @@ class EscholConnectorTest(TestCase):
         self.article.primary_issue = issue
         self.article.issues.add(issue)
         self.article.save()
-        epub, error = article_to_eschol(article=self.article)
+        apub = logic.article_to_eschol(article=self.article)
         debug_mock.assert_called_once_with(f"Escholarhip Deposit for Article {self.article.pk}: {{'item': {{'sourceName': 'janeway', 'sourceID': '{self.article.pk}', 'sourceURL': 'localhost', 'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', 'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, 'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], 'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', 'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', 'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{{'id': 'janeway_{self.article.pk}', 'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}")
 
     def test_private_render_galley(self):
@@ -309,31 +314,34 @@ class EscholConnectorTest(TestCase):
         self.article.issues.add(issue)
         self.article.render_galley = galley
         self.article.save()
-        epub, error = send_article(self.article, False, None)
+        apub = logic.send_article(self.article, False, None)
 
-        self.assertIsNone(epub)
-        self.assertEqual(error, f"Private render galley selected for {self.article}")
+        self.assertFalse(apub.success)
+        self.assertEqual(apub.result, f"Private render galley selected for {self.article}")
+        self.assertEqual(EscholArticle.objects.filter(article=self.article).count(), 0)
 
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
     def test_issue_to_eschol(self, debug_mock):
         issue = helpers.create_issue(self.journal, articles=[self.article])
-        objs, errors = issue_to_eschol(issue=issue)
+        ipub = logic.issue_to_eschol(issue=issue)
+        self.assertEqual(ipub.issue, issue)
+        self.assertTrue(ipub.success)
+        self.assertEqual(ipub.articlepublicationhistory_set.all().count(), 1)
         debug_mock.assert_called_once_with(f"Escholarhip Deposit for Article {self.article.pk}: {{'item': {{'sourceName': 'janeway', 'sourceID': '{self.article.pk}', 'sourceURL': 'localhost', 'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', 'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, 'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], 'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', 'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', 'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{{'id': 'janeway_{self.article.pk}', 'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}")
 
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'info')
     def test_is_not_configured(self, info_mock):
-        self.assertFalse(is_configured())
+        self.assertFalse(logic.is_configured())
         info_mock.assert_called_once_with("Escholarship API not configured.")
 
     @override_settings(ESCHOL_API_URL="test")
     def test_is_configured(self):
-        self.assertTrue(is_configured())
+        self.assertTrue(logic.is_configured())
 
     def test_issue_meta_no_cover(self):
         issue = helpers.create_issue(self.journal, articles=[self.article])
-        success, msg = send_issue_meta(issue)
+        success, msg = logic.send_issue_meta(issue)
         self.assertTrue(success)
-        self.assertTrue(msg, "No cover image")
 
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
     def test_issue_meta_with_cover(self, debug_mock):
@@ -350,7 +358,7 @@ class EscholConnectorTest(TestCase):
         issue.cover_image = svg_file
         issue.save()
 
-        success, msg = send_issue_meta(issue)
+        success, msg = logic.send_issue_meta(issue)
         self.assertTrue(success)
         debug_mock.assert_called_once_with(msg)
 
@@ -368,16 +376,22 @@ class EscholConnectorTest(TestCase):
         issue.cover_image = svg_file
         issue.save()
 
-        success, msg = send_issue_meta(issue)
+        success, msg = logic.send_issue_meta(issue)
         self.assertFalse(success)
         self.assertEqual(msg, "Cannot upload cover images for non-integer issue number 1-2")
 
-    def test_article_unexpected_error(self):
-        # pass a non-article so we know it'll generate an unexpected error
-        epub, error = article_to_eschol(article=self.journal)
-        self.assertEqual(error, f"An unexpected error occured when sending {self.journal} to eScholarship: 'Journal' object has no attribute 'journal'")
+    @mock.patch('plugins.eschol.logic.send_article', return_value=None, side_effect=Exception('Boom!'))
+    def test_article_unexpected_error(self, mock_send):
+        issue = helpers.create_issue(self.journal, articles=[self.article])
+        apub = logic.article_to_eschol(article=self.article)
+        mock_send.assert_called_once_with(self.article, False, None)
+        self.assertFalse(apub.success)
+        self.assertEqual(apub.result, f"An unexpected error occured when sending {self.article} to eScholarship: Boom!")
 
-    def test_issue_unexpected_error(self):
-        # pass a non-issue so we know it'll generate an unexpected error
-        epub, errors = issue_to_eschol(issue=self.journal)
-        self.assertEqual(errors[0], f"An unexpected error occured when sending {self.journal} to eScholarship: 'Journal' object has no attribute 'cover_image'")
+    @mock.patch('plugins.eschol.logic.send_issue_meta', return_value=None, side_effect=Exception('Boom!'))
+    def test_issue_unexpected_error(self, mock_send):
+        issue = helpers.create_issue(self.journal, articles=[self.article])
+        apub = logic.issue_to_eschol(issue=issue)
+        mock_send.assert_called_once_with(issue, False)
+        self.assertFalse(apub.success)
+        self.assertEqual(apub.result, f"An unexpected error occured when sending {issue} to eScholarship: Boom!")

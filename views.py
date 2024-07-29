@@ -12,36 +12,38 @@ from django.http import HttpResponseForbidden
 
 from datetime import datetime, timedelta
 
-from .models import AccessToken
+from .models import AccessToken, IssuePublicationHistory, EscholArticle
 
-from .logic import issue_to_eschol, article_to_eschol
+from .logic import article_to_eschol, issue_to_eschol
 from .plugin_settings import PLUGIN_NAME
 
+from django_q.tasks import async_task
+
+def publish_issue_task(issue_id):
+    issue = Issue.objects.get(pk=issue_id)
+    ipub = issue_to_eschol(issue=issue)
+    return str(ipub)
+
 def publish_issue(request, issue_id):
-    template = 'eschol/published.html'
+    template = 'eschol/issue_publish_queued.html'
     issue = get_object_or_404(Issue, pk=issue_id)
-    epubs, errors = issue_to_eschol(request=request, issue=issue)
-    context = {
-        'plugin_name': PLUGIN_NAME,
-        'obj': issue,
-        'objs': epubs,
-        'errors': errors,
-        'issue': issue,
-        'obj_name': "Issue"
-    }
+    async_task('plugins.eschol.views.publish_issue_task', issue_id, group=issue_id)
+    context = {'plugin_name': PLUGIN_NAME,
+               'issue': issue}
     return render(request, template, context)
 
 def publish_article(request, article_id):
     template = 'eschol/published.html'
     article = get_object_or_404(Article, pk=article_id)
-    epub, error = article_to_eschol(request=request, article=article)
+    pub_history  = article_to_eschol(request=request, article=article)
+    epub = EscholArticle.objects.get(article=article)
     context = {
         'plugin_name': PLUGIN_NAME,
         'obj': article,
-        'objs': [epub] if epub else [],
-        'errors': [error] if error else [],
+        'pub_history': pub_history,
         'issue': article.issue,
-        'obj_name': "Article"
+        'obj_name': "Article",
+        'epub': epub
     }
     return render(request, template, context)
 
@@ -51,7 +53,8 @@ def list_articles(request, issue_id):
     context = {
         'plugin_name': PLUGIN_NAME,
         'issue': issue,
-        'articles': issue.get_sorted_articles()
+        'articles': issue.get_sorted_articles(),
+        'pub_history': issue.issuepublicationhistory_set.all().order_by('-date')
     }
 
     return render(request, template, context)

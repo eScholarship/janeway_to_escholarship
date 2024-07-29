@@ -2,8 +2,7 @@ from django.core.management.base import BaseCommand
 
 from submission.models import Article
 from plugins.eschol import logic
-
-import pprint
+from plugins.eschol.models import EscholArticle
 
 class Command(BaseCommand):
     """ Deposits specified article in escholarship via graphql api"""
@@ -18,14 +17,14 @@ class Command(BaseCommand):
         article_id = options.get("article_id")
         article = Article.objects.get(id=article_id)
 
-        epub, error = logic.article_to_eschol(article=article)
-        if error:
-            print(f'An error occured sending article {article_id} to eScholarship:')
-            print(error)
-        if epub:
+        apub = logic.article_to_eschol(article=article)
+        if apub.success:
             print(f'Deposited article {article.pk} to eScholarship at {epub.ark}')
-            if epub.is_doi_registered:
+            epub = EscholArticle.objects.get(article=article)
+            if epub.has_doi_error():
                 print(f'\tDOI registered {article.get_doi()}')
             else:
                 print(f'\tDOI not registered: {epub.doi_result_text}')
-            
+        else:
+            print(f'An error occured sending article {article_id} to eScholarship:')
+            print(apub.result)
