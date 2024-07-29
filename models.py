@@ -58,11 +58,22 @@ class ArticlePublicationHistory(models.Model):
             s += f" with {self.issue_pub.issue}"
         return s
 
+    class Meta:
+       ordering = ['-date']
+
 class IssuePublicationHistory(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     issue = models.ForeignKey('journal.Issue', on_delete=models.CASCADE)
     success = models.BooleanField()
     result = models.TextField(null=True, blank=True)
+
+    def result_text(self):
+        if self.result:
+            return self.result
+        else:
+            total_success = self.articlepublicationhistory_set.filter(success=True).count()
+            total = self.articlepublicationhistory_set.all().count()
+            return f"Successfully published {total_success} of {total} articles"
 
     def __str__(self):
         total_success = self.articlepublicationhistory_set.filter(success=True).count()
@@ -70,3 +81,6 @@ class IssuePublicationHistory(models.Model):
         success = "successful" if self.success else "failed"
 
         return f"{self.issue} publication {success} on {self.date}: {total_success} of {total} articles published."
+
+    class Meta:
+       ordering = ['-date']

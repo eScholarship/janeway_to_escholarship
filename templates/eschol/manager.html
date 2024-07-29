@@ -14,11 +14,36 @@
         <h2>Publish Issues</h2>
     </div>
     <div class="content">
-        <ul>
+        <table class="table table-bordered small" id="eschol_publish_articles">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Issue</th>
+                <th>Date Published</th>
+                <th>Successful</th>
+                <th>Result</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
             {% for issue in issues %}
-                <li><a href="{% url 'eschol_list_articles' issue.pk %}">{% include "eschol/includes/issue.html" with issue=issue %}</a></li>
+                <td><a href="{% url 'manage_issues_id' issue.pk %}">{{issue.pk}}</a></td>
+                <td><a href="{% url 'eschol_list_articles' issue.pk %}">{% include "eschol/includes/issue.html" with issue=issue %}</a></td>
+                {% with history=issue.issuepublicationhistory_set.all %}
+                {% if history.count %}
+                    <td>{{ history.0.date }}</td>
+                    <td>{% if history.0.success %}<img src="/static/admin/img/icon-yes.svg" alt="True">{% else %}<img src="/static/admin/img/icon-no.svg" alt="False">{% endif %}</td>
+                    <td>{{ history.0.result_text }}</td>
+                {% else %}
+                    <td>(no publication history)</td>
+                    <td></td>
+                    <td></td>
+                {% endif %}
+                {% endwith %}
+                <td><a class="button" href="{% url 'eschol_publish_issue' issue.pk %}">Publish Full Issue</a></td>
             {% endfor %}
-        </ul>
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock body %}
