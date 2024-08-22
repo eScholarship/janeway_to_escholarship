@@ -325,8 +325,9 @@ class EscholConnectorTest(TestCase):
         issue = helpers.create_issue(self.journal, articles=[self.article])
         ipub = logic.issue_to_eschol(issue=issue)
         self.assertEqual(ipub.issue, issue)
-        self.assertTrue(ipub.success)
+        self.assertFalse(ipub.success)
         self.assertEqual(ipub.articlepublicationhistory_set.all().count(), 1)
+        self.assertFalse(ipub.articlepublicationhistory_set.all().first().success)
         debug_mock.assert_called_once_with(f"Escholarhip Deposit for Article {self.article.pk}: {{'item': {{'sourceName': 'janeway', 'sourceID': '{self.article.pk}', 'sourceURL': 'localhost', 'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', 'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, 'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], 'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', 'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', 'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{{'id': 'janeway_{self.article.pk}', 'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}")
 
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'info')
