@@ -559,8 +559,10 @@ def issue_to_eschol(**options):
 
         for a in issue.get_sorted_articles():
             apub = send_article(a, configured, request)
+            ipub.success = ipub.success and apub.success
             apub.issue_pub = ipub
             apub.save()
+        ipub.save()
     except Exception as e:
         msg = f'An unexpected error occured when sending {issue} to eScholarship: {e}'
         logger.error(e, exc_info=True)
