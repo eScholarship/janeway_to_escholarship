@@ -7,6 +7,7 @@ class JournalUnitAdmin(admin.ModelAdmin):
 class EscholArticleAdmin(admin.ModelAdmin):
     search_fields = ('article__title',)
     list_filter = ('article__journal',)
+    raw_id_fields = ('article',)
 
 class ArticlePublicationHistoryAdmin(admin.ModelAdmin):
     pass
