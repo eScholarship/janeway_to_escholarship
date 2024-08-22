@@ -10,10 +10,10 @@ class EscholArticleAdmin(admin.ModelAdmin):
     raw_id_fields = ('article',)
 
 class ArticlePublicationHistoryAdmin(admin.ModelAdmin):
-    pass
+    raw_id_fields = ('article',)
 
 class IssuePublicationHistoryAdmin(admin.ModelAdmin):
-    pass
+    raw_id_fields = ('issue',)
 
 admin.site.register(JournalUnit, JournalUnitAdmin)
 admin.site.register(EscholArticle, EscholArticleAdmin)
