@@ -64,11 +64,14 @@ class ArticlePublicationHistory(models.Model):
 class IssuePublicationHistory(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     issue = models.ForeignKey('journal.Issue', on_delete=models.CASCADE)
-    success = models.BooleanField()
+    success = models.BooleanField(default=False)
+    is_complete = models.BooleanField(default=False)
     result = models.TextField(null=True, blank=True)
 
     def result_text(self):
-        if self.result and not self.success:
+        if not self.is_complete:
+            return f"Publication in process"
+        elif self.result and not self.success:
             return self.result
         else:
             total_success = self.articlepublicationhistory_set.filter(success=True).count()
@@ -76,11 +79,14 @@ class IssuePublicationHistory(models.Model):
             return f"Successfully published {total_success} of {total} articles"
 
     def __str__(self):
-        total_success = self.articlepublicationhistory_set.filter(success=True).count()
-        total = self.articlepublicationhistory_set.all().count()
-        success = "successful" if self.success else "failed"
+        if self.is_complete:
+            total_success = self.articlepublicationhistory_set.filter(success=True).count()
+            total = self.articlepublicationhistory_set.all().count()
+            success = "successful" if self.success else "failed"
 
-        return f"{self.issue} publication {success} on {self.date}: {total_success} of {total} articles published."
+            return f"{self.issue} publication {success} on {self.date}: {total_success} of {total} articles published."
+        else:
+            return f"{self.issue} publication in process"
 
     class Meta:
        ordering = ['-date']

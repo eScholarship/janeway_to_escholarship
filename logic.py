@@ -562,12 +562,14 @@ def issue_to_eschol(**options):
             ipub.success = ipub.success and apub.success
             apub.issue_pub = ipub
             apub.save()
-        ipub.save()
     except Exception as e:
         msg = f'An unexpected error occured when sending {issue} to eScholarship: {e}'
         logger.error(e, exc_info=True)
         if request: messages.error(request, msg)
         ipub = IssuePublicationHistory.objects.create(issue=issue, success=False, result=msg)
+
+    ipub.is_complete = True
+    ipub.save()
 
     return ipub
 

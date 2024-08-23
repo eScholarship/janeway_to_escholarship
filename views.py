@@ -54,7 +54,7 @@ def list_articles(request, issue_id):
         'plugin_name': PLUGIN_NAME,
         'issue': issue,
         'articles': issue.get_sorted_articles(),
-        'pub_history': issue.issuepublicationhistory_set.all().order_by('-date')
+        'pub_history': issue.issuepublicationhistory_set.all().order_by('-date')[:10]
     }
 
     return render(request, template, context)

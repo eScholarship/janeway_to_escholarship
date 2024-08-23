@@ -76,7 +76,7 @@
                 {% for p in pub_history %}
                 <tr>
                     <td>{{ p.date }}</td>
-                    <td>{% if p.success %}<img src="/static/admin/img/icon-yes.svg" alt="True">{% else %}<img src="/static/admin/img/icon-no.svg" alt="False">{% endif %}</td>
+                    <td>{% if p.is_complete %}{% if p.success %}<img src="/static/admin/img/icon-yes.svg" alt="True">{% else %}<img src="/static/admin/img/icon-no.svg" alt="False">{% endif %}{% endif %}</td>
                     <td>{% if p.success %}{{ p }}{% else %}{{ t.result }}{% endif %}</td>
                 </tr>
                 {% endfor %}
