@@ -1,5 +1,8 @@
 from django.contrib import admin
-from plugins.eschol.models import *
+from plugins.eschol.models import (JournalUnit,
+                                   EscholArticle,
+                                   IssuePublicationHistory,
+                                   ArticlePublicationHistory)
 
 class JournalUnitAdmin(admin.ModelAdmin):
     fields = ['journal', 'unit', 'default_css_url']
