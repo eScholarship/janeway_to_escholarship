@@ -1,5 +1,5 @@
-from io import StringIO
 import os
+from io import StringIO
 
 from django.core.management import call_command
 from django.test import TestCase
@@ -7,9 +7,8 @@ from django.test import TestCase
 from utils.testing import helpers
 from utils.models import LogEntry
 from journal.models import Journal
-
-from plugins.eschol.models import EscholArticle
 from identifiers.models import Identifier
+from plugins.eschol.models import EscholArticle
 
 LOG_ENTRY1 = """Article {} imported by Journal Transporter.
 
@@ -35,8 +34,14 @@ class TestImportArks(TestCase):
         self.article = helpers.create_article(self.journal)
 
     def create_log_entry(self, desc):
-        self.log_entry = LogEntry.add_entry([], desc.format(self.article.pk), "info", None, target=self.article, subject="Import")
-        self.log_entry.save()
+        log_entry = LogEntry.add_entry([],
+                                       desc.format(self.article.pk),
+                                       "info",
+                                       None,
+                                       target=self.article,
+                                       subject="Import")
+        log_entry.save()
+        return log_entry
 
     def get_file_path(self, filename):
         return f'{os.path.dirname(__file__)}/test_files/{filename}'
@@ -53,8 +58,8 @@ class TestImportArks(TestCase):
         return out.getvalue()
 
     def test_match_source_id_to_external_id(self):
-        self.create_log_entry(LOG_ENTRY1)
-        out = self.call_command(self.journal.code, self.get_file_path("test1.tsv"))
+        _entry = self.create_log_entry(LOG_ENTRY1)
+        _out = self.call_command(self.journal.code, self.get_file_path("test1.tsv"))
         self.assertEqual(EscholArticle.objects.count(), 1)
         a = EscholArticle.objects.get(article=self.article)
         self.assertEqual(a.ark, "ark:/13030/qt00000001")
@@ -65,8 +70,8 @@ class TestImportArks(TestCase):
         self.assertEqual(i.identifier, "10.00000/C40001")
 
     def test_match_source_id_to_local_id(self):
-        self.create_log_entry(LOG_ENTRY1)
-        out = self.call_command(self.journal.code, self.get_file_path("test2.tsv"))
+        _entry = self.create_log_entry(LOG_ENTRY1)
+        _out = self.call_command(self.journal.code, self.get_file_path("test2.tsv"))
         self.assertEqual(EscholArticle.objects.count(), 1)
         a = EscholArticle.objects.get(article=self.article)
         self.assertEqual(a.ark, "ark:/13030/qt00000002")
@@ -77,8 +82,8 @@ class TestImportArks(TestCase):
         self.assertEqual(i.identifier, "10.00000/C40002")
 
     def test_ark_from_log_entry(self):
-        self.create_log_entry(LOG_ENTRY2)
-        out = self.call_command(self.journal.code, self.get_file_path("test3.tsv"))
+        _entry = self.create_log_entry(LOG_ENTRY2)
+        _out = self.call_command(self.journal.code, self.get_file_path("test3.tsv"))
         self.assertEqual(EscholArticle.objects.count(), 1)
         a = EscholArticle.objects.get(article=self.article)
         self.assertEqual(a.ark, "ark:/13030/qt00000003")
@@ -88,29 +93,31 @@ class TestImportArks(TestCase):
         self.assertEqual(i.identifier, "10.00000/C40003")
 
     def test_existing_doi(self):
-        self.create_log_entry(LOG_ENTRY1)
+        _entry = self.create_log_entry(LOG_ENTRY1)
         Identifier.objects.create(article=self.article, id_type='doi', identifier="10.00000/C40004")
         self.assertEqual(Identifier.objects.count(), 1)
         i = Identifier.objects.get(article=self.article)
         self.assertEqual(i.identifier, "10.00000/C40004")
-        out = self.call_command(self.journal.code, self.get_file_path("test1.tsv"))
+        _out = self.call_command(self.journal.code, self.get_file_path("test1.tsv"))
         self.assertEqual(Identifier.objects.count(), 1)
         i = Identifier.objects.get(article=self.article)
         self.assertEqual(i.identifier, "10.00000/C40001")
 
     def test_l2(self):
-        l2 = Journal(code="uccllt_l2", domain="testserver2")
-        l2.save()
+        l2 = Journal.objects.create(code="uccllt_l2", domain="testserver2")
         self.article = helpers.create_article(l2)
-        self.create_log_entry(LOG_ENTRY3)
+        _entry = self.create_log_entry(LOG_ENTRY3)
 
-        out = self.call_command(l2.code, self.get_file_path("test4.tsv"))
+        _out = self.call_command(l2.code, self.get_file_path("test4.tsv"))
         self.assertEqual(EscholArticle.objects.count(), 1)
 
     def test_existing_escholarticle(self):
-        e = EscholArticle.objects.create(article=self.article, ark='ark:/13030/qt00000002', source_name='ojs', source_id="999")
-        self.create_log_entry(LOG_ENTRY1)
-        out = self.call_command(self.journal.code, self.get_file_path("test1.tsv"))
+        _e = EscholArticle.objects.create(article=self.article,
+                                          ark='ark:/13030/qt00000002',
+                                          source_name='ojs',
+                                          source_id="999")
+        _entry = self.create_log_entry(LOG_ENTRY1)
+        _out = self.call_command(self.journal.code, self.get_file_path("test1.tsv"))
         self.assertEqual(EscholArticle.objects.count(), 1)
         a = EscholArticle.objects.get(article=self.article)
         self.assertEqual(a.ark, "ark:/13030/qt00000002")

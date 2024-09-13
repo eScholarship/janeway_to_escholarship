@@ -27,7 +27,7 @@ class EscholArticle(models.Model):
         return f"{self.article}: {self.ark}"
 
     def get_short_ark(self):
-        return self.ark.split("/")[-1][-8:]
+        return self.ark.rsplit("/", maxsplit=1)[-1][2:]
 
     def get_eschol_url(self):
         return f"{settings.JSCHOL_URL}uc/item/{self.get_short_ark()}"
