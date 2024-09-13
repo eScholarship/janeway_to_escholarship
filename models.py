@@ -1,9 +1,10 @@
+from secrets import token_urlsafe
+
 from django.db import models
 from django.conf import settings
 
 from journal.models import Journal
 from submission.models import Article
-from secrets import token_urlsafe
 
 class JournalUnit(models.Model):
     journal = models.OneToOneField(Journal, null=True, on_delete=models.CASCADE)
@@ -11,7 +12,7 @@ class JournalUnit(models.Model):
     default_css_url = models.URLField(max_length=200, null=True, blank=True)
 
     def __str__(self):
-        return "{}: {}".format(self.journal, self.unit)
+        return f"{self.journal}: {self.unit}"
 
 class EscholArticle(models.Model):
     article = models.ForeignKey(Article, on_delete=models.CASCADE)
@@ -23,16 +24,17 @@ class EscholArticle(models.Model):
     source_id = models.CharField(max_length=20, null=True, blank=True)
 
     def __str__(self):
-        return "{}: {}".format(str(self.article), self.ark)
+        return f"{self.article}: {self.ark}"
 
     def get_short_ark(self):
         return self.ark.split("/")[-1][-8:]
 
     def get_eschol_url(self):
-        return "{}uc/item/{}".format(settings.JSCHOL_URL, self.get_short_ark())
+        return f"{settings.JSCHOL_URL}uc/item/{self.get_short_ark()}"
 
     def has_doi_error(self):
-        return not (self.is_doi_registered and ("success" in self.doi_result_text or not self.doi_result_text))
+        rtext = self.doi_result_text
+        return not (self.is_doi_registered and ("success" in rtext or not rtext))
 
 class AccessToken(models.Model):
     token = models.CharField(max_length=50)
@@ -47,7 +49,10 @@ class AccessToken(models.Model):
 class ArticlePublicationHistory(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     article = models.ForeignKey('submission.Article', on_delete=models.CASCADE)
-    issue_pub = models.ForeignKey('IssuePublicationHistory', blank=True, null=True, on_delete=models.CASCADE)
+    issue_pub = models.ForeignKey('IssuePublicationHistory',
+                                  blank=True,
+                                  null=True,
+                                  on_delete=models.CASCADE)
     success = models.BooleanField()
     result = models.TextField(null=True, blank=True)
 
@@ -59,7 +64,7 @@ class ArticlePublicationHistory(models.Model):
         return s
 
     class Meta:
-       ordering = ['-date']
+        ordering = ['-date']
 
 class IssuePublicationHistory(models.Model):
     date = models.DateTimeField(auto_now_add=True)
@@ -69,24 +74,22 @@ class IssuePublicationHistory(models.Model):
     result = models.TextField(null=True, blank=True)
 
     def result_text(self):
-        if not self.is_complete:
-            return f"Publication in process"
-        elif self.result and not self.success:
-            return self.result
-        else:
+        if self.is_complete:
             total_success = self.articlepublicationhistory_set.filter(success=True).count()
             total = self.articlepublicationhistory_set.all().count()
             return f"Successfully published {total_success} of {total} articles"
 
+        return "Publication in process"
+
     def __str__(self):
         if self.is_complete:
-            total_success = self.articlepublicationhistory_set.filter(success=True).count()
-            total = self.articlepublicationhistory_set.all().count()
-            success = "successful" if self.success else "failed"
+            ts = self.articlepublicationhistory_set.filter(success=True).count()
+            t = self.articlepublicationhistory_set.all().count()
+            s = "successful" if self.success else "failed"
 
-            return f"{self.issue} publication {success} on {self.date}: {total_success} of {total} articles published."
-        else:
-            return f"{self.issue} publication in process"
+            return f"{self.issue} publication {s} on {self.date}: {ts} of {t} articles published."
+
+        return f"{self.issue} publication in process"
 
     class Meta:
-       ordering = ['-date']
+        ordering = ['-date']

@@ -1,23 +1,20 @@
-from django.shortcuts import render
+from datetime import datetime, timedelta
 
-from plugins.eschol import forms
+from django.http import Http404
+from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponseForbidden
+
+from django_q.tasks import async_task
 
 from submission.models import Article
 from journal.models import Issue
 from core.models import File
 from core import files
-from django.http import Http404
-from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponseForbidden
 
-from datetime import datetime, timedelta
-
-from .models import AccessToken, IssuePublicationHistory, EscholArticle
+from .models import AccessToken, EscholArticle
 
 from .logic import article_to_eschol, issue_to_eschol
 from .plugin_settings import PLUGIN_NAME
-
-from django_q.tasks import async_task
 
 def publish_issue_task(issue_id):
     issue = Issue.objects.get(pk=issue_id)
@@ -88,8 +85,7 @@ def access_article_file(request, article_id, file_id):
         if file_id != "None":
             file_object = get_object_or_404(File, pk=file_id)
             return files.serve_file(request, file_object, article_object)
-        else:
-            raise Http404
-    except Http404:
+        raise Http404
+    except Http404 as exc:
         if file_id != "None":
-            raise Http404
+            raise Http404 from exc
