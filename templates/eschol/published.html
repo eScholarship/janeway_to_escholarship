@@ -19,11 +19,13 @@
     <div class="success content">
         <p>{{ pub_history }}</p>
     </div>
-        {% if not epub.has_doi_error %}
+        {% with pub_history.get_doi_error as doi_error %}
+        {% if doi_error %}
         <div class="alert content">
-            <p>EZID DOI registration failure: {{ epub.doi_result_text }}</p>
+            <p>EZID DOI registration failure: {{ doi_error }}</p>
         </div>
         {% endif %}
+        {% endwith %}
     {% else %}
     <div class="alert content">
         <p>{{ pub_history }}</p>

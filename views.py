@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from django.http import Http404
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseForbidden
+from django.contrib.auth.decorators import login_required
 
 from django_q.tasks import async_task
 
@@ -11,16 +12,18 @@ from journal.models import Issue
 from core.models import File
 from core import files
 
-from .models import AccessToken, EscholArticle
+from .models import AccessToken
 
 from .logic import article_to_eschol, issue_to_eschol
 from .plugin_settings import PLUGIN_NAME
 
+@login_required
 def publish_issue_task(issue_id):
     issue = Issue.objects.get(pk=issue_id)
     ipub = issue_to_eschol(issue=issue)
     return str(ipub)
 
+@login_required
 def publish_issue(request, issue_id):
     template = 'eschol/issue_publish_queued.html'
     issue = get_object_or_404(Issue, pk=issue_id)
@@ -29,21 +32,21 @@ def publish_issue(request, issue_id):
                'issue': issue}
     return render(request, template, context)
 
+@login_required
 def publish_article(request, article_id):
     template = 'eschol/published.html'
     article = get_object_or_404(Article, pk=article_id)
     pub_history  = article_to_eschol(request=request, article=article)
-    epub = EscholArticle.objects.get(article=article)
     context = {
         'plugin_name': PLUGIN_NAME,
         'obj': article,
         'pub_history': pub_history,
         'issue': article.issue,
         'obj_name': "Article",
-        'epub': epub
     }
     return render(request, template, context)
 
+@login_required
 def list_articles(request, issue_id):
     template = 'eschol/list_articles.html'
     issue = get_object_or_404(Issue, pk=issue_id)
@@ -56,6 +59,7 @@ def list_articles(request, issue_id):
 
     return render(request, template, context)
 
+@login_required
 def eschol_manager(request):
     template = 'eschol/manager.html'
     if request.journal:
@@ -80,7 +84,6 @@ def access_article_file(request, article_id, file_id):
         return HttpResponseForbidden()
 
     article_object = Article.objects.get(id=article_id)
-
     try:
         if file_id != "None":
             file_object = get_object_or_404(File, pk=file_id)

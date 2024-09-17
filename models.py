@@ -56,6 +56,14 @@ class ArticlePublicationHistory(models.Model):
     success = models.BooleanField()
     result = models.TextField(null=True, blank=True)
 
+    def get_doi_error(self):
+        e = EscholArticle.objects.filter(article=self.article)
+        if e.exists():
+            a = e.first()
+            if a.has_doi_error():
+                return a.doi_result_text
+        return False
+
     def __str__(self):
         success = "successful" if self.success else "failed"
         s = f"{self.article} publication {success} on {self.date}"
