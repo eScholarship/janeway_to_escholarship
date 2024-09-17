@@ -154,10 +154,10 @@ def xml_galley_to_html(article, galley, epub):
                'css_file': galley.css_file}
     r = render_to_string("eschol/escholarship.html", context)
     s = force_bytes(r,  encoding="utf-8")
-    p = Popen(['xmllint', '--html', '--xmlout', '--format', '--encode', 'utf-8', '/dev/stdin'],
+    with Popen(['xmllint', '--html', '--xmlout', '--format', '--encode', 'utf-8', '/dev/stdin'],
               stdin=PIPE,
-              stdout=PIPE)
-    (output, _error_output) = p.communicate(s)
+              stdout=PIPE) as p:
+        (output, _error_output) = p.communicate(s)
     if not epub:
         ark = get_provisional_id(article)
         epub = EscholArticle.objects.create(article=article, ark=ark)
@@ -440,7 +440,7 @@ def register_doi(article, epub, request):
         # If we don't find the ezid plugin just don't register.  it's fine.
         pass
     except Exception as e: #pylint: disable=broad-exception-caught
-        # if we get another type of error log it
+        # log unexpected error and report a shorter message to the user
         msg = f'An unexpected error occured when registering DOI for {article}: {e}'
         logger.error(e, exc_info=True)
         if request: messages.error(request, msg)

@@ -63,10 +63,12 @@ class EscholConnectorTest(TestCase):
 
         return save_file(self.request, file, label=label, public=True, path_parts=path_parts,)
 
+    @override_settings(JSCHOL_URL="test.test/")
     def test_short_ark(self):
         e = EscholArticle.objects.create(article=self.article,
                                          ark="ark:/13030/qtXXXXXXXX")
         self.assertEqual(e.get_short_ark(), "XXXXXXXX")
+        self.assertEqual(e.get_eschol_url(), "test.test/uc/item/XXXXXXXX")
 
     def test_xml_to_html_galley(self):
         xml_filepath = f'{os.path.dirname(__file__)}/test_files/glossa_test.xml'
