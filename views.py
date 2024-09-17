@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 
-from django.http import Http404
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseForbidden
 from django.contrib.auth.decorators import login_required
@@ -83,12 +82,6 @@ def access_article_file(request, article_id, file_id):
     if not AccessToken.objects.filter(article_id=article_id, file_id=file_id, token=token).exists():
         return HttpResponseForbidden()
 
-    article_object = Article.objects.get(id=article_id)
-    try:
-        if file_id != "None":
-            file_object = get_object_or_404(File, pk=file_id)
-            return files.serve_file(request, file_object, article_object)
-        raise Http404
-    except Http404 as exc:
-        if file_id != "None":
-            raise Http404 from exc
+    article_object = get_object_or_404(Article, pk=article_id)
+    file_object = get_object_or_404(File, pk=file_id)
+    return files.serve_file(request, file_object, article_object)

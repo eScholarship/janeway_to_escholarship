@@ -5,6 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from utils.testing import helpers
 from journal.tests.utils import make_test_journal
 
+from core.models import File
 from core.files import save_file
 
 from plugins.eschol.models import AccessToken
@@ -82,3 +83,54 @@ class TestViews(TestCase):
                                                      'file_id': tf.pk}) + f"?access={t.token}"
         response = self.client.get(url, SERVER_NAME=self.journal.domain)
         self.assertEqual(response.status_code, 200)
+
+    def test_access_file_file_missing(self):
+        f = File.objects.create(article_id=self.article.pk,
+                                label="file",
+                                is_galley=True,
+                                original_filename="test.pdf",
+                                mime_type="application/pdf",
+                                uuid_filename="uuid.pdf")
+        t = AccessToken.objects.create(token="abc", article_id=self.article.pk, file_id=f.pk)
+        url = reverse('access_article_file', kwargs={'article_id': self.article.pk,
+                                                     'file_id': f.pk}) + f"?access={t.token}"
+        response = self.client.get(url, SERVER_NAME=self.journal.domain)
+        self.assertEqual(response.status_code, 404)
+
+    def test_access_file_no_file_id(self):
+        f = SimpleUploadedFile(
+            "test.pdf",
+            b"\x00\x01\x02\x03",
+        )
+        tf = self.create_file(self.article, f, "Test File 1")
+        t = AccessToken.objects.create(token="abc", article_id=self.article.pk, file_id=tf.pk)
+
+        url = "/plugins/escholarship-publishing-plugin/download/" + \
+                f"{self.article.pk}/file//?access={t.token}"
+        response = self.client.get(url, SERVER_NAME=self.journal.domain)
+        self.assertEqual(response.status_code, 404)
+
+    def test_access_file_no_token(self):
+        f = SimpleUploadedFile(
+            "test.pdf",
+            b"\x00\x01\x02\x03",
+        )
+        tf = self.create_file(self.article, f, "Test File 1")
+        t = AccessToken.objects.create(token="abc", article_id=self.article.pk, file_id=tf.pk + 1)
+        url = reverse('access_article_file', kwargs={'article_id': self.article.pk,
+                                                     'file_id': tf.pk}) + f"?access={t.token}"
+        response = self.client.get(url, SERVER_NAME=self.journal.domain)
+        self.assertEqual(response.status_code, 403)
+
+    def test_access_file_no_file_obj(self):
+        f = SimpleUploadedFile(
+            "test.pdf",
+            b"\x00\x01\x02\x03",
+        )
+        tf = self.create_file(self.article, f, "Test File 1")
+        t = AccessToken.objects.create(token="abc", article_id=self.article.pk, file_id=tf.pk + 1)
+
+        url = reverse('access_article_file', kwargs={'article_id': self.article.pk,
+                                                     'file_id': tf.pk + 1}) + f"?access={t.token}"
+        response = self.client.get(url, SERVER_NAME=self.journal.domain)
+        self.assertEqual(response.status_code, 404)
