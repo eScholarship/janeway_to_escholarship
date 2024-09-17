@@ -13,19 +13,25 @@ from plugins.eschol.models import EscholArticle
 LOG_ENTRY1 = """Article {} imported by Journal Transporter.
 
 Import metadata:
-{{"imported_at": "2023-03-27 06:56:17.753986", "external_identifiers": [{{"name": "source_id", "value": "100"}}], "journal_transporter_article_uuid": "00000000-0000-0000-0000-000000000000"}}
+{{"imported_at": "2023-03-27 06:56:17.753986", \
+"external_identifiers": [{{"name": "source_id", "value": "100"}}], \
+"journal_transporter_article_uuid": "00000000-0000-0000-0000-000000000000"}}
 """
 
 LOG_ENTRY2 = """Article {} imported by Journal Transporter.
 
 Import metadata:
-{{"imported_at": "2023-03-27 06:56:17.753986", "external_identifiers": [{{"name": "source_id", "value": "100"}}, {{"name": "ark", "value": "qt00000003"}}], "journal_transporter_article_uuid": "00000000-0000-0000-0000-000000000000"}}
+{{"imported_at": "2023-03-27 06:56:17.753986", \
+"external_identifiers": [{{"name": "source_id", "value": "100"}}, {{"name": "ark", "value": "qt00000003"}}], \
+"journal_transporter_article_uuid": "00000000-0000-0000-0000-000000000000"}}
 """
 
 LOG_ENTRY3 = """Article {} imported by Journal Transporter.
 
 Import metadata:
-{{"imported_at": "2023-09-18 15:05:17.539996", "external_identifiers": [{{"name": "source_id", "value": "56302"}}], "journal_transporter_article_uuid": "70e03163-625e-53aa-9b8e-070abf2d1a63"}}"""
+{{"imported_at": "2023-09-18 15:05:17.539996", \
+"external_identifiers": [{{"name": "source_id", "value": "56302"}}], \
+"journal_transporter_article_uuid": "70e03163-625e-53aa-9b8e-070abf2d1a63"}}"""
 
 class TestImportArks(TestCase):
 

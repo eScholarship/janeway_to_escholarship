@@ -37,7 +37,6 @@ def install():
         print(f'Plugin {PLUGIN_NAME} is already installed.')
 
 def register_for_events():
-    '''register for events '''
     pass
 
 def hook_registry():

@@ -23,6 +23,21 @@ from core import models as core_models, urls # pylint: disable=unused-import
 from plugins.eschol import logic
 from plugins.eschol.models import EscholArticle
 
+TEST_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20120330//EN" "http://jats.nlm.nih.gov/publishing/1.2/JATS-journalpublishing1.dtd">
+<article>test</article>
+"""
+
+DEPOSIT_RESULT = """Escholarhip Deposit for Article {0}: \
+{{'item': {{'sourceName': 'janeway', 'sourceID': '{0}', 'sourceURL': 'localhost', \
+'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', \
+'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, \
+'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], \
+'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', \
+'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', \
+'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{{'id': 'janeway_{0}', \
+'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}"""
+
 class EscholConnectorTest(TestCase):
 
     def setUp(self):
@@ -126,14 +141,7 @@ class EscholConnectorTest(TestCase):
         )
         tf1 = self.create_file(self.article, f1, "Test File 1")
 
-        f2 = SimpleUploadedFile(
-            "test.xml",
-            """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20120330//EN" "http://jats.nlm.nih.gov/publishing/1.2/JATS-journalpublishing1.dtd">
-            <article>test</article>
-            """.strip().encode("utf-8"),
-        )
+        f2 = SimpleUploadedFile("test.xml", TEST_XML.strip().encode("utf-8"),)
         tf2 = self.create_file(self.article, f2, "Test File 2")
 
         sf1 = SupplementaryFile.objects.create(file=tf1)
@@ -157,7 +165,7 @@ class EscholConnectorTest(TestCase):
 
         self.assertEqual(j['suppFiles'][1]['file'], 'test.xml')
         self.assertEqual(j['suppFiles'][1]['contentType'], 'application/xml')
-        self.assertEqual(j['suppFiles'][1]['size'], 250)
+        self.assertEqual(j['suppFiles'][1]['size'], 226)
         self.assertIn(f"{base_furl}{tf2.pk}/?access=", j['suppFiles'][1]['fetchLink'])
 
 
@@ -344,7 +352,7 @@ class EscholConnectorTest(TestCase):
         self.article.issues.add(issue)
         self.article.save()
         _apub = logic.article_to_eschol(article=self.article)
-        result_text = f"Escholarhip Deposit for Article {self.article.pk}: {{'item': {{'sourceName': 'janeway', 'sourceID': '{self.article.pk}', 'sourceURL': 'localhost', 'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', 'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, 'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], 'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', 'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', 'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{{'id': 'janeway_{self.article.pk}', 'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}"
+        result_text = DEPOSIT_RESULT.format(self.article.pk)
         debug_mock.assert_called_once_with(result_text)
 
     def test_private_render_galley(self):
@@ -375,7 +383,7 @@ class EscholConnectorTest(TestCase):
         self.assertFalse(ipub.success)
         self.assertEqual(ipub.articlepublicationhistory_set.all().count(), 1)
         self.assertFalse(ipub.articlepublicationhistory_set.all().first().success)
-        result_text = f"Escholarhip Deposit for Article {self.article.pk}: {{'item': {{'sourceName': 'janeway', 'sourceID': '{self.article.pk}', 'sourceURL': 'localhost', 'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', 'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, 'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], 'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', 'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', 'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{{'id': 'janeway_{self.article.pk}', 'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}"
+        result_text = DEPOSIT_RESULT.format(self.article.pk)
         debug_mock.assert_called_once_with(result_text)
 
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'info')
