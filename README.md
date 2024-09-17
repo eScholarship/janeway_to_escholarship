@@ -21,11 +21,20 @@ Janeway plugin to deposit to escholarship
 
 ## Tests
 
-There is a *very* small group of tests written as standard django test cases. The following command will run the tests.  You must install the plugin in a directory called "eschol"
+There is a test suite written as standard django test cases. The following command will run the tests.  You must install the plugin in a directory called "eschol"
 
 ```
 manage.py test eschol
 ```
+
+### Coverage
+`coverage run --source=src/plugins/eschol/ --omit=src/plugins/eschol/migrations/*,src/plugins/eschol/tests/* src/manage.py test eschol`
+
+### Pylint
+
+For now we are excluding a number of pylint rules due to the amount of work it would take to fix them or because I'm not convinced that I agree with the rule. We will improve this over time.
+
+`DJANGO_SETTINGS_MODULE=core.settings pylint --load-plugins pylint_django --disable=missing-function-docstring,missing-module-docstring,missing-class-docstring,multiple-statements,too-many-arguments,too-many-locals,too-many-branches,too-many-statements,multiple-imports,too-many-return-statements --ignore=migrations src/plugins/eschol/`
 
 ## Dev env setup
 
