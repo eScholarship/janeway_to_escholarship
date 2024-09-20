@@ -34,7 +34,7 @@ class EscholArticle(models.Model):
 
     def has_doi_error(self):
         rtext = self.doi_result_text
-        return not (self.is_doi_registered and ("success" in rtext or not rtext))
+        return rtext is not None and len(rtext) > 0 and not "success" in rtext
 
 class AccessToken(models.Model):
     token = models.CharField(max_length=50)
