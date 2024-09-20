@@ -16,7 +16,6 @@ from .models import AccessToken
 from .logic import article_to_eschol, issue_to_eschol
 from .plugin_settings import PLUGIN_NAME
 
-@login_required
 def publish_issue_task(issue_id):
     issue = Issue.objects.get(pk=issue_id)
     ipub = issue_to_eschol(issue=issue)
