@@ -39,13 +39,6 @@ DEPOSIT_QUERY = """mutation depositItem($item: DepositItemInput!) {
 }
 """
 
-# withdraw_query = """mutation withdrawItem($input: WithdrawItemInput!) {
-#     withdrawItem(input: $input) {
-#         message
-#     }
-# }
-# """
-
 MINT_QUERY = """mutation mintProvisionalID($input: MintProvisionalIDInput!){
     mintProvisionalID(input: $input){
         id
@@ -343,14 +336,14 @@ def get_article_json(article, unit):
     if len(authors) > 0:
         item["authors"]  = authors
 
-    funders = []
-    for f in article.funders.all():
-        funders.append({
-            "name": f.name,
-            "reference": f.fundref_id
-        })
-    if len(funders) > 0:
-        item["grants"] = funders
+    # funders = []
+    # for f in article.funders.all():
+    #     funders.append({
+    #         "name": f.name,
+    #         "reference": f.fundref_id
+    #     })
+    # if len(funders) > 0:
+    #     item["grants"] = funders
 
     rg = article.get_render_galley
 
@@ -404,15 +397,6 @@ def get_article_json(article, unit):
 
     return item, epub
 
-# def withdraw_item(article, public_message, **args):
-#     input = {"id": "",  "public_message": public_message}
-#     input.update(args)
-
-#     variables = {"input": input}
-#     r = send_to_eschol(withdraw_query, variables)
-
-#     pprint.pprint(r.text)
-
 def get_default_css_url(journal):
     if JournalUnit.objects.filter(journal=journal).exists():
         return JournalUnit.objects.get(journal=journal).default_css_url
@@ -427,7 +411,8 @@ def get_unit(journal):
 
 def register_doi(article, epub, request):
     try:
-        from plugins.ezid.logic import register_journal_doi, update_journal_doi
+        # it would be better to refactor so it doesn't depend directly on ezid plugin
+        from plugins.ezid.logic import register_journal_doi, update_journal_doi # pylint: disable=import-outside-toplevel
         if not epub.is_doi_registered:
             enabled, success, result_text = register_journal_doi(article, request)
         else:
@@ -536,6 +521,7 @@ def send_issue_meta(issue, configured=False):
             success = False
             msg = f"Cannot upload cover images for non-integer issue number {issue.issue}"
             return success, msg
+
 
         if configured:
             r = send_to_eschol(ISSUE_QUERY, variables)
