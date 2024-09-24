@@ -53,7 +53,7 @@ ISSUE_QUERY = """mutation updateIssue($input: UpdateIssueInput!){
 }
 """
 
-def save_article_file(output, article, original_filename, file_mime, owner, label, description):
+def save_article_file(output, article, original_filename, kwargs=None):
     filename = str(uuid4()) + str(os.path.splitext(original_filename)[1])
     folder_structure = os.path.join(settings.BASE_DIR, 'files', 'articles', str(article.id))
 
@@ -64,14 +64,11 @@ def save_article_file(output, article, original_filename, file_mime, owner, labe
     with open(fpath, 'wb') as f:
         f.write(output)
 
-    new_file = File(mime_type=file_mime,
-                    original_filename=original_filename,
-                    uuid_filename=filename,
-                    label=label,
-                    description=description,
-                    owner=owner,
-                    is_galley=False,
-                    article_id=article.pk)
+    new_file = File.objects.create(original_filename=original_filename,
+                                   uuid_filename=filename,
+                                   is_galley=False,
+                                   article_id=article.pk,
+                                    **kwargs)
 
     new_file.save()
 
@@ -162,9 +159,11 @@ def xml_galley_to_html(article, galley, epub):
     html_files = File.objects.filter(original_filename=html_filename, article_id=article.id)
     if html_files.exists():
         html_files.delete()
-    html_file = save_article_file(output, article, html_filename, "text/html",
-                                  article.owner, label="Generated HTML",
-                                  description="HTML file generated from JATS for eschol")
+    kwargs = {'mime_type': "text/html",
+              'owner': article.owner,
+              'label': "Generated HTML",
+              'description': "HTML file generated from JATS for eschol"}
+    html_file = save_article_file(output, article, html_filename, kwargs=kwargs)
     item.update({"id": ark,
                  "contentLink": get_file_url(article, html_file.pk),
                  "contentFileName": html_file.original_filename,})

@@ -1,5 +1,5 @@
-import mock
 from datetime import datetime
+import mock
 from django.utils import timezone
 from django.conf import settings
 
@@ -67,13 +67,15 @@ class TestViews(TestCase):
 
     @mock.patch('plugins.eschol.logic.send_article')
     def test_publish_issue_task(self, mock_send):
-        mock_send.return_value = ArticlePublicationHistory.objects.create(article=self.article, success=True)
+        mock_send.return_value = ArticlePublicationHistory.objects.create(article=self.article,
+                                                                          success=True)
         result = publish_issue_task(self.issue.pk)
         self.assertEqual(IssuePublicationHistory.objects.filter(issue=self.issue).count(), 1)
         ipub = IssuePublicationHistory.objects.get(issue=self.issue)
         self.assertTrue(ipub.success)
         self.assertTrue(ipub.is_complete)
-        self.assertEqual(result, f"{self.issue} publication successful on {ipub.date}: 1 of 1 articles published.")
+        msg = f"{self.issue} publication successful on {ipub.date}: 1 of 1 articles published."
+        self.assertEqual(result, msg)
 
     @override_settings(URL_CONFIG="domain")
     def test_publish_issue(self):
@@ -90,7 +92,8 @@ class TestViews(TestCase):
         url = reverse('eschol_publish_article', kwargs={'article_id': self.article.pk})
         self.login_redirect(url)
 
-        mock_send.return_value = ArticlePublicationHistory.objects.create(article=self.article, success=True)
+        mock_send.return_value = ArticlePublicationHistory.objects.create(article=self.article,
+                                                                          success=True)
         self.client.force_login(self.admin_user)
         response = self.client.get(url, SERVER_NAME=self.journal.domain)
         self.assertEqual(ArticlePublicationHistory.objects.filter(article=self.article).count(), 1)

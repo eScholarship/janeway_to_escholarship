@@ -40,9 +40,15 @@ DEPOSIT_RESULT = """Escholarhip Deposit for Article {0}: \
 'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}"""
 
 
-class Response(object):
+class Response():
     def __init__(self, text):
         self.text = text
+
+    def has_header(self):
+        return False
+
+    def getvalue(self):
+        return self.text
 
 class EscholConnectorTest(TestCase):
 
@@ -93,7 +99,6 @@ class EscholConnectorTest(TestCase):
         e.is_doi_registered = False
         self.assertTrue(e.has_doi_error())
 
-
     def test_xml_to_html_galley(self):
         xml_filepath = f'{os.path.dirname(__file__)}/test_files/glossa_test.xml'
 
@@ -116,6 +121,12 @@ class EscholConnectorTest(TestCase):
         self.article.save()
 
         j, _ = logic.get_article_json(self.article, logic.get_unit(self.journal))
+
+        html_file = File.objects.get(original_filename="qtXXXXXXXX.html")
+        self.assertEqual(html_file.mime_type, "text/html")
+        self.assertEqual(html_file.owner, self.article.owner)
+        self.assertEqual(html_file.label, "Generated HTML")
+        self.assertEqual(html_file.description, "HTML file generated from JATS for eschol")
 
         base_url = "http://localhost/TST/plugins/escholarship-publishing-plugin/download/"
         self.assertEqual(j['id'], 'ark:/13030/qtXXXXXXXX')
@@ -288,7 +299,9 @@ class EscholConnectorTest(TestCase):
         #funder, _ = Funder.objects.get_or_create(name="Test Funder",
         # fundref_id="http://dx.doi.org/10.13039/501100021082")
         #funder.save()
-        doi = Identifier.objects.create(id_type="doi", identifier="10.00000/AA0000A0", article=self.article)
+        doi = Identifier.objects.create(id_type="doi",
+                                        identifier="10.00000/AA0000A0",
+                                        article=self.article)
         other_id = Identifier.objects.create(id_type="pubid", identifier="1", article=self.article)
 
         self.article.abstract = "This is the abstract"
@@ -344,14 +357,14 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["issueDescription"], "Test issue description<br>")
         self.assertEqual(j["orderInSection"], 10001)
         self.assertEqual(len(j["localIDs"]), 3)
-        self.assertEqual(j["localIDs"][0]["id"], other_id.identifier)
-        self.assertEqual(j["localIDs"][0]["scheme"], 'OTHER_ID')
-        self.assertEqual(j["localIDs"][0]["subScheme"], 'pubid')
-        self.assertEqual(j["localIDs"][1]["id"], doi.identifier)
-        self.assertEqual(j["localIDs"][1]["scheme"], 'DOI')
-        self.assertEqual(j["localIDs"][2]["id"], f'janeway_{self.article.pk}')
-        self.assertEqual(j["localIDs"][2]["scheme"], 'OTHER_ID')
-        self.assertEqual(j["localIDs"][2]["subScheme"], 'other')
+        for i in j["localIDs"]:
+            if i['scheme'] == 'OTHER_ID':
+                if i["subScheme"] == 'pubid':
+                    self.assertEqual(i["id"], other_id.identifier)
+                elif i["subScheme"] == 'other':
+                    self.assertEqual(i["id"], f'janeway_{self.article.pk}')
+            elif i['scheme'] == 'DOI':
+                self.assertEqual(i["id"], doi.identifier)
         self.assertEqual(len(j["authors"]), 2)
         self.assertEqual(j["authors"][0]['nameParts']['fname'], "Author")
         self.assertEqual(j["authors"][0]['nameParts']['lname'], "User")
@@ -392,7 +405,8 @@ class EscholConnectorTest(TestCase):
         self.article.issues.add(issue)
         self.article.save()
 
-        result_json = {'data': {'depositItem': {'message': 'Deposited', 'id': 'ark:/13030/qtAAAAAAAA'}}}
+        result_json = {'data': {'depositItem': {'message': 'Deposited',
+                                                'id': 'ark:/13030/qtAAAAAAAA'}}}
         mock_send.return_value = Response(json.dumps(result_json))
 
         apub = logic.article_to_eschol(article=self.article)
@@ -420,7 +434,6 @@ class EscholConnectorTest(TestCase):
         self.assertTrue(success)
         self.assertTrue(msg, "Cover Image uploaded")
 
- 
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
     def test_article_to_eschol_disabled(self, debug_mock):
         issue = helpers.create_issue(self.journal, articles=[self.article])
