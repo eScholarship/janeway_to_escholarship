@@ -397,7 +397,7 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(apub.result, msg)
         info_mock.assert_called_once_with(msg)
 
-    @override_settings(ESCHOL_API_URL="test")
+    @override_settings(ESCHOL_API_URL="test", JSCHOL_URL="test.test/")
     @mock.patch('plugins.eschol.logic.send_to_eschol')
     def test_article_to_eschol(self, mock_send):
         issue = helpers.create_issue(self.journal, articles=[self.article])
