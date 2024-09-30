@@ -109,7 +109,7 @@ class Command(BaseCommand):
                                                                      defaults={'ark': ark,
                                                                                'source_name': source,
                                                                                'source_id': source_id})
-                    if not created and (e.ark != ark or e.source != source or e.source_id != source_id):
+                    if not created and (e.ark != ark or e.source_name != source or e.source_id != source_id):
                         print(f'ERROR: {e} does not match {ark} | {source} | {source_id}')
 
                     if doi and not doi == 'NULL':
