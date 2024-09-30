@@ -259,23 +259,32 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["sectionHeader"], "Articles")
 
     def test_minimal_json(self):
-        j, _ = logic.get_article_json(self.article, logic.get_unit(self.journal))
+        d = datetime(2023, 1, 1, tzinfo=timezone.get_current_timezone())
+        mini = helpers.create_article(self.journal,
+                                      with_author=False,
+                                      date_published=d,
+                                      stage=STAGE_PUBLISHED,
+                                      language=None)
+        mini.owner = self.user
+        mini.save()
+
+        j, _ = logic.get_article_json(mini, logic.get_unit(self.journal))
         self.assertEqual(j["sourceName"], "janeway")
-        self.assertEqual(j["sourceID"], str(self.article.pk))
+        self.assertEqual(j["sourceID"], str(mini.pk))
         self.assertEqual(j["sourceURL"], self.press.domain)
         self.assertEqual(j["submitterEmail"], self.user.email)
-        self.assertEqual(j["title"], self.article.title)
+        self.assertEqual(j["title"], mini.title)
         self.assertEqual(j["type"], "ARTICLE")
-        self.assertEqual(j["published"], self.article.date_published.strftime("%Y-%m-%d"))
-        self.assertEqual(j["datePublished"], self.article.date_published.strftime("%Y-%m-%d"))
-        self.assertEqual(j["isPeerReviewed"], self.article.peer_reviewed)
+        self.assertEqual(j["published"], mini.date_published.strftime("%Y-%m-%d"))
+        self.assertEqual(j["datePublished"], mini.date_published.strftime("%Y-%m-%d"))
+        self.assertEqual(j["isPeerReviewed"], mini.peer_reviewed)
         self.assertEqual(j["contentVersion"], "PUBLISHER_VERSION")
         self.assertEqual(j["journal"], self.journal.name)
         self.assertEqual(len(j["units"]), 1)
         self.assertEqual(j["units"][0], self.journal.code)
         self.assertEqual(j["pubRelation"], "EXTERNAL_PUB")
         self.assertEqual(len(j["localIDs"]), 1)
-        self.assertEqual(j["localIDs"][0]["id"], f'janeway_{self.article.pk}')
+        self.assertEqual(j["localIDs"][0]["id"], f'janeway_{mini.pk}')
         self.assertEqual(len(j), 16)
 
     def test_kitchen_sink(self):
@@ -388,6 +397,7 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["sourceName"], "ojs")
         self.assertEqual(j["sourceID"], "555555")
 
+    @override_settings(ESCHOL_API_URL="test", JSCHOL_URL="test.test/")
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'info')
     def test_send_article_no_issue(self, info_mock):
         apub = logic.send_article(self.article, False, None)
