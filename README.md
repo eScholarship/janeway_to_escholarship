@@ -1,5 +1,5 @@
 # janeway_to_escholarship
-Janeway plugin to deposit to escholarship
+Janeway plugin to deposit to eScholarship
 
 ## Management commands
 
