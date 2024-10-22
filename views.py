@@ -21,8 +21,8 @@ def publish_issue_task(issue_id):
     if not IssuePublicationHistory.objects.filter(issue=issue, is_complete=False).exists():
         ipub = issue_to_eschol(issue=issue)
         return str(ipub)
-    else:
-        return f"{issue} publication in process"
+
+    return f"{issue} publication in process"
 
 @login_required
 def publish_issue(request, issue_id):
