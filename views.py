@@ -28,7 +28,7 @@ def publish_issue_task(issue_id):
 def publish_issue(request, issue_id):
     template = 'eschol/issue_publish_queued.html'
     issue = get_object_or_404(Issue, pk=issue_id)
-    async_task('plugins.eschol.views.publish_issue_task', issue_id, group=issue_id)
+    async_task(publish_issue_task, issue_id, group=issue_id)
     context = {'plugin_name': PLUGIN_NAME,
                'issue': issue}
     return render(request, template, context)
