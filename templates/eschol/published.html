@@ -15,30 +15,21 @@
     <div class="title-area">
         <h2>Published {{ obj }}</h2>
     </div>
-    {% if  errors|length >  0%}
-    <div class="alert content">
-        <p>Errors occurred upon deposit:</p>
-        <ul>
-            {% for e in errors %}
-                <li>{{ e }}</li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
-
-    {% if objs|length > 0 %}
+    {% if pub_history.success %}
     <div class="success content">
-        <p>Successfully deposited:</p>
-        <ul>
-        {% for obj in objs %}
-            <li>Article: {{ obj.article }} at {{ obj.ark }}
-                {% if not obj.is_doi_registered and obj.doi_result_text %}
-                    <ul></ul><li>EZID DOI registration failure: {{ obj.doi_result_text }}</li></ul>
-                {% endif %}
-            </li>
-
-        {% endfor %}
-        </ul>
+        <p>{{ pub_history }}</p>
+    </div>
+        {% with pub_history.get_doi_error as doi_error %}
+        {% if doi_error %}
+        <div class="alert content">
+            <p>EZID DOI registration failure: {{ doi_error }}</p>
+        </div>
+        {% endif %}
+        {% endwith %}
+    {% else %}
+    <div class="alert content">
+        <p>{{ pub_history }}</p>
+        <p>{{ pub_history.result }}</p>
     </div>
     {% endif %}
 </div>

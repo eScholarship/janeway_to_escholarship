@@ -1,9 +1,9 @@
 from utils import models
-from plugins.eschol import logic
+from utils.logger import get_logger
 
 from events import logic as event_logic
 
-from utils.logger import get_logger
+from plugins.eschol import logic
 
 logger = get_logger(__name__)
 
@@ -27,17 +27,16 @@ def install():
     )
 
     if created:
-        print('Plugin {0} installed.'.format(PLUGIN_NAME))
+        print(f'Plugin {PLUGIN_NAME} installed.')
     elif plugin.version != VERSION:
-        print('Plugin updated: {0} -> {1}'.format(VERSION, plugin.version))
+        print(f'Plugin updated: {VERSION} -> {plugin.version}')
         plugin.version = VERSION
         plugin.display_name = DISPLAY_NAME
         plugin.save()
     else:
-        print('Plugin {0} is already installed.'.format(PLUGIN_NAME))
+        print(f'Plugin {PLUGIN_NAME} is already installed.')
 
 def register_for_events():
-    '''register for events '''
     pass
 
 def hook_registry():

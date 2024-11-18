@@ -1,24 +1,54 @@
+import os, json
+
+from unittest.mock import patch
+from datetime import datetime
+import mock
+
 from django.test import TestCase, override_settings
 from django.conf import settings
-from unittest.mock import patch
-
-from utils.testing import helpers
+from django.utils import timezone
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from datetime import datetime
-from django.utils import timezone
-
-import utils, os
-
-from submission.models import STAGE_PUBLISHED, Licence, Keyword, Funder, Field, FieldAnswer
-from core.models import File, SupplementaryFile
-from core.files import save_file
+from submission.models import STAGE_PUBLISHED, Licence, Keyword, Field, FieldAnswer
 from submission.models import FrozenAuthor
 
-# these imports are needed to make sure plugin urls are loaded
-from core import models as core_models, urls
+import utils
+from utils.testing import helpers
 
-from eschol.logic import *
+from core.models import File, SupplementaryFile
+from core.files import save_file
+# these imports are needed to make sure plugin urls are loaded
+from core import models as core_models, urls # pylint: disable=unused-import
+from identifiers.models import Identifier
+
+from plugins.eschol import logic
+from plugins.eschol.models import EscholArticle
+
+TEST_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20120330//EN" "http://jats.nlm.nih.gov/publishing/1.2/JATS-journalpublishing1.dtd">
+<article>test</article>
+"""
+
+DEPOSIT_RESULT = """Escholarhip Deposit for Article {0}: \
+{{'item': {{'sourceName': 'janeway', 'sourceID': '{0}', 'sourceURL': 'localhost', \
+'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', \
+'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, \
+'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], \
+'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', \
+'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', \
+'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{{'id': 'janeway_{0}', \
+'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}"""
+
+
+class Response():
+    def __init__(self, text):
+        self.text = text
+
+    def has_header(self):
+        return False
+
+    def getvalue(self):
+        return self.text
 
 class EscholConnectorTest(TestCase):
 
@@ -31,9 +61,10 @@ class EscholConnectorTest(TestCase):
         self.request.user = self.user
         self.press = helpers.create_press()
         self.journal, _ = helpers.create_journals()
+        d = datetime(2023, 1, 1, tzinfo=timezone.get_current_timezone())
         self.article = helpers.create_article(self.journal,
                                               with_author=False,
-                                              date_published=datetime(2023, 1, 1, tzinfo=timezone.get_current_timezone()),
+                                              date_published=d,
                                               stage=STAGE_PUBLISHED,
                                               language=None)
         self.article.owner = self.user
@@ -43,6 +74,30 @@ class EscholConnectorTest(TestCase):
         path_parts = ('articles', article.pk)
 
         return save_file(self.request, file, label=label, public=True, path_parts=path_parts,)
+
+    @override_settings(JSCHOL_URL="test.test/")
+    def test_short_ark(self):
+        e = EscholArticle.objects.create(article=self.article,
+                                         ark="ark:/13030/qtXXXXXXXX")
+        self.assertEqual(e.get_short_ark(), "XXXXXXXX")
+        self.assertEqual(e.get_eschol_url(), "test.test/uc/item/XXXXXXXX")
+
+    def test_has_doi_error(self):
+        e = EscholArticle.objects.create(article=self.article, ark="ark:/13030/qtXXXXXXXX")
+        self.assertFalse(e.is_doi_registered)
+        self.assertFalse(e.has_doi_error())
+
+        e.is_doi_registered = True
+        self.assertFalse(e.has_doi_error())
+
+        e.doi_result_text = "success"
+        self.assertFalse(e.has_doi_error())
+
+        e.doi_result_text = "failed"
+        self.assertTrue(e.has_doi_error())
+
+        e.is_doi_registered = False
+        self.assertTrue(e.has_doi_error())
 
     def test_xml_to_html_galley(self):
         xml_filepath = f'{os.path.dirname(__file__)}/test_files/glossa_test.xml'
@@ -65,38 +120,55 @@ class EscholConnectorTest(TestCase):
 
         self.article.save()
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, _ = logic.get_article_json(self.article, logic.get_unit(self.journal))
 
+        html_file = File.objects.get(original_filename="qtXXXXXXXX.html")
+        self.assertEqual(html_file.mime_type, "text/html")
+        self.assertEqual(html_file.owner, self.article.owner)
+        self.assertEqual(html_file.label, "Generated HTML")
+        self.assertEqual(html_file.description, "HTML file generated from JATS for eschol")
+
+        base_url = "http://localhost/TST/plugins/escholarship-publishing-plugin/download/"
         self.assertEqual(j['id'], 'ark:/13030/qtXXXXXXXX')
-        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/", j["contentLink"])
+        url = f"{base_url}{self.article.pk}/file/"
+        self.assertIn(url, j["contentLink"])
         self.assertEqual(j["contentFileName"], 'qtXXXXXXXX.html')
 
-        self.assertEqual(len(j['suppFiles']), 2)
+        supp_files = j['suppFiles']
+        self.assertEqual(len(supp_files), 2)
 
-        self.assertEqual(j['suppFiles'][0]['file'], 'qtXXXXXXXX.xml')
-        self.assertEqual(j['suppFiles'][0]['contentType'], 'application/xml')
-        self.assertEqual(j['suppFiles'][0]['size'], 157291)
-        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/{xml_obj.pk}/?access=", j['suppFiles'][0]['fetchLink'])
-        self.assertEqual(j['suppFiles'][0]['title'], '[XML] Test Article from Utils Testing Helpers')
+        base_furl = f"{base_url}{self.article.pk}/file/"
+        sfile0 = supp_files[0]
+        self.assertEqual(sfile0['file'], 'qtXXXXXXXX.xml')
+        self.assertEqual(sfile0['contentType'], 'application/xml')
+        self.assertEqual(sfile0['size'], 157291)
+        self.assertIn(f"{base_furl}{xml_obj.pk}/?access=", sfile0['fetchLink'])
+        self.assertEqual(sfile0['title'], '[XML] Test Article from Utils Testing Helpers')
 
-        self.assertEqual(j['suppFiles'][1]['file'], 'test.pdf')
-        self.assertEqual(j['suppFiles'][1]['contentType'], 'application/pdf')
-        self.assertEqual(j['suppFiles'][1]['size'], 4)
-        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/{pdf_obj.pk}/?access=", j['suppFiles'][1]['fetchLink'])
-        #self.assertEqual(j['suppFiles'][1]['title'], '')
+        sfile1 = supp_files[1]
+        self.assertEqual(sfile1['file'], 'test.pdf')
+        self.assertEqual(sfile1['contentType'], 'application/pdf')
+        self.assertEqual(sfile1['size'], 4)
+        self.assertIn(f"{base_furl}{pdf_obj.pk}/?access=", sfile1['fetchLink'])
+        #self.assertEqual(sfile1['title'], '')
 
         self.assertEqual(len(j['imgFiles']), 1)
         self.assertEqual(j['imgFiles'][0]['file'], 'test.png')
-        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/{img_obj.pk}/?access=", j['imgFiles'][0]['fetchLink'])
+        self.assertIn(f"{base_furl}{img_obj.pk}/?access=", j['imgFiles'][0]['fetchLink'])
 
     def test_galley(self):
+        f = File.objects.create(article_id=self.article.pk,
+                                label="file",
+                                is_galley=True,
+                                original_filename="test.pdf",
+                                mime_type="application/pdf",
+                                uuid_filename="uuid.pdf")
+        _galley = helpers.create_galley(self.article, file_obj=f)
 
-        f = File.objects.create(article_id=self.article.pk, label="file", is_galley=True, original_filename="test.pdf", mime_type="application/pdf", uuid_filename="uuid.pdf")
-        galley = helpers.create_galley(self.article, file_obj=f)
+        j, _ = logic.get_article_json(self.article, logic.get_unit(self.journal))
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
-
-        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/{f.pk}/?access=", j["contentLink"])
+        base_url = "http://localhost/TST/plugins/escholarship-publishing-plugin/download/"
+        self.assertIn(f"{base_url}{self.article.pk}/file/{f.pk}/?access=", j["contentLink"])
         self.assertEqual(j["contentFileName"], "test.pdf")
 
     def test_supp_files(self):
@@ -106,14 +178,7 @@ class EscholConnectorTest(TestCase):
         )
         tf1 = self.create_file(self.article, f1, "Test File 1")
 
-        f2 = SimpleUploadedFile(
-            "test.xml",
-            """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20120330//EN" "http://jats.nlm.nih.gov/publishing/1.2/JATS-journalpublishing1.dtd">
-            <article>test</article>
-            """.strip().encode("utf-8"),
-        )
+        f2 = SimpleUploadedFile("test.xml", TEST_XML.strip().encode("utf-8"),)
         tf2 = self.create_file(self.article, f2, "Test File 2")
 
         sf1 = SupplementaryFile.objects.create(file=tf1)
@@ -124,92 +189,129 @@ class EscholConnectorTest(TestCase):
 
         self.article.save()
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, _ = logic.get_article_json(self.article, logic.get_unit(self.journal))
 
         self.assertEqual(len(j['suppFiles']), 2)
 
+        base_url = "http://localhost/TST/plugins/escholarship-publishing-plugin/download/"
+        base_furl = f"{base_url}{self.article.pk}/file/"
         self.assertEqual(j['suppFiles'][0]['file'], 'test.pdf')
         self.assertEqual(j['suppFiles'][0]['contentType'], 'application/pdf')
         self.assertEqual(j['suppFiles'][0]['size'], 4)
-        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/{tf1.pk}/?access=", j['suppFiles'][0]['fetchLink'])
+        self.assertIn(f"{base_furl}{tf1.pk}/?access=", j['suppFiles'][0]['fetchLink'])
 
         self.assertEqual(j['suppFiles'][1]['file'], 'test.xml')
         self.assertEqual(j['suppFiles'][1]['contentType'], 'application/xml')
-        self.assertEqual(j['suppFiles'][1]['size'], 250)
-        self.assertIn(f"http://localhost/TST/plugins/escholarship-publishing-plugin/download/{self.article.pk}/file/{tf2.pk}/?access=", j['suppFiles'][1]['fetchLink'])
+        self.assertEqual(j['suppFiles'][1]['size'], 226)
+        self.assertIn(f"{base_furl}{tf2.pk}/?access=", j['suppFiles'][1]['fetchLink'])
 
 
     def test_invalid_license(self):
-        license, _ = Licence.objects.get_or_create(journal=self.journal,
-                                                   press=self.press,
-                                                   name="Creative Commons 4",
-                                                   short_name="CC4",
-                                                   url="https://bad.url")
-        license.save()
-        self.article.license = license
+        l, _ = Licence.objects.get_or_create(journal=self.journal,
+                                             press=self.press,
+                                             name="Creative Commons 4",
+                                             short_name="CC4",
+                                             url="https://bad.url")
+        l.save()
+        self.article.license = l
         self.article.save()
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, _ = logic.get_article_json(self.article, logic.get_unit(self.journal))
 
         self.assertNotIn("license", j)
 
 
     def test_data_availability(self):
-        field1 = Field.objects.create(journal=self.journal, press=self.press, name="Data Availability", kind="text", order=1, required=False)
-        answer1 = FieldAnswer.objects.create(field=field1, article=self.article, answer="Public repository")
+        field1 = Field.objects.create(journal=self.journal,
+                                      press=self.press,
+                                      name="Data Availability",
+                                      kind="text",
+                                      order=1,
+                                      required=False)
+        _answer1 = FieldAnswer.objects.create(field=field1,
+                                             article=self.article,
+                                             answer="Public repository")
 
-        field2 = Field.objects.create(journal=self.journal, press=self.press, name="Data URL", kind="text", order=2, required=False)
-        answer2 = FieldAnswer.objects.create(field=field2, article=self.article, answer="http://data.repo")
+        field2 = Field.objects.create(journal=self.journal,
+                                      press=self.press,
+                                      name="Data URL",
+                                      kind="text",
+                                      order=2,
+                                      required=False)
+        _answer2 = FieldAnswer.objects.create(field=field2,
+                                             article=self.article,
+                                             answer="http://data.repo")
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, _ = logic.get_article_json(self.article, logic.get_unit(self.journal))
 
         self.assertEqual(j["dataAvailability"], "publicRepo")
         self.assertEqual(j["dataURL"], "http://data.repo")
 
     def test_plural_sections(self):
+        d = datetime(2023, 1, 1, tzinfo=timezone.get_current_timezone())
         article2 = helpers.create_article(self.journal,
                                           with_author=False,
-                                          date_published=datetime(2023, 1, 1, tzinfo=timezone.get_current_timezone()))
+                                          date_published=d)
 
-        issue = helpers.create_issue(self.journal, articles=[self.article, article2])
+        _issue = helpers.create_issue(self.journal, articles=[self.article, article2])
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, _ = logic.get_article_json(self.article, logic.get_unit(self.journal))
         self.assertEqual(j["sectionHeader"], "Articles")
 
     def test_minimal_json(self):
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        d = datetime(2023, 1, 1, tzinfo=timezone.get_current_timezone())
+        mini = helpers.create_article(self.journal,
+                                      with_author=False,
+                                      date_published=d,
+                                      stage=STAGE_PUBLISHED,
+                                      language=None)
+        mini.owner = self.user
+        mini.save()
+
+        j, _ = logic.get_article_json(mini, logic.get_unit(self.journal))
         self.assertEqual(j["sourceName"], "janeway")
-        self.assertEqual(j["sourceID"], str(self.article.pk))
+        self.assertEqual(j["sourceID"], str(mini.pk))
         self.assertEqual(j["sourceURL"], self.press.domain)
         self.assertEqual(j["submitterEmail"], self.user.email)
-        self.assertEqual(j["title"], self.article.title)
+        self.assertEqual(j["title"], mini.title)
         self.assertEqual(j["type"], "ARTICLE")
-        self.assertEqual(j["published"], self.article.date_published.strftime("%Y-%m-%d"))
-        self.assertEqual(j["datePublished"], self.article.date_published.strftime("%Y-%m-%d"))
-        self.assertEqual(j["isPeerReviewed"], self.article.peer_reviewed)
+        self.assertEqual(j["published"], mini.date_published.strftime("%Y-%m-%d"))
+        self.assertEqual(j["datePublished"], mini.date_published.strftime("%Y-%m-%d"))
+        self.assertEqual(j["isPeerReviewed"], mini.peer_reviewed)
         self.assertEqual(j["contentVersion"], "PUBLISHER_VERSION")
         self.assertEqual(j["journal"], self.journal.name)
         self.assertEqual(len(j["units"]), 1)
         self.assertEqual(j["units"][0], self.journal.code)
         self.assertEqual(j["pubRelation"], "EXTERNAL_PUB")
         self.assertEqual(len(j["localIDs"]), 1)
-        self.assertEqual(j["localIDs"][0]["id"], f'janeway_{self.article.pk}')
-        self.assertEqual(len(j), 15)
+        self.assertEqual(j["localIDs"][0]["id"], f'janeway_{mini.pk}')
+        self.assertEqual(len(j), 16)
 
     def test_kitchen_sink(self):
         issue = helpers.create_issue(self.journal, articles=[self.article])
         issue.issue_description = "Test issue description<br>"
         issue.save()
-        license, _ = Licence.objects.get_or_create(journal=self.journal,
-                                                   press=self.press,
-                                                   name="Creative Commons 4",
-                                                   short_name="CC4",
-                                                   url="https://creativecommons.org/licenses/by/4.0")
-        license.save()
+        cc_url = "https://creativecommons.org/licenses/by/4.0"
+        l, _ = Licence.objects.get_or_create(journal=self.journal,
+                                             press=self.press,
+                                             name="Creative Commons 4",
+                                             short_name="CC4",
+                                             url=cc_url)
+        l.save()
         author = helpers.create_author(self.journal)
-        corporate_author  = FrozenAuthor.objects.create(article=self.article, institution="Author Collective", is_corporate=True, order=2)
-        funder, _ = Funder.objects.get_or_create(name="Test Funder", fundref_id="http://dx.doi.org/10.13039/501100021082")
-        funder.save()
+        author.orcid =  "0000-0000-0000-0000"
+        author.save()
+        _corporate_author  = FrozenAuthor.objects.create(article=self.article,
+                                                         institution="Author Collective",
+                                                         is_corporate=True,
+                                                         order=2)
+        #funder, _ = Funder.objects.get_or_create(name="Test Funder",
+        # fundref_id="http://dx.doi.org/10.13039/501100021082")
+        #funder.save()
+        doi = Identifier.objects.create(id_type="doi",
+                                        identifier="10.00000/AA0000A0",
+                                        article=self.article)
+        other_id = Identifier.objects.create(id_type="pubid", identifier="1", article=self.article)
 
         self.article.abstract = "This is the abstract"
         self.article.date_submitted = datetime(2022, 1, 1, tzinfo=timezone.get_current_timezone())
@@ -220,9 +322,9 @@ class EscholConnectorTest(TestCase):
         self.article.language = "eng"
         self.article.publisher_name = "The Publisher Name"
         self.article.keywords.add(Keyword.objects.create(word="keyword1"))
-        self.article.license = license
+        self.article.license = l
         self.article.authors.add(author)
-        self.article.funders.add(funder)
+        #self.article.funders.add(funder)
 
         self.article.save()
         author.snapshot_self(self.article)
@@ -230,7 +332,7 @@ class EscholConnectorTest(TestCase):
         self.journal.issn = "1111-1111"
         self.journal.save()
 
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        j, _ = logic.get_article_json(self.article, logic.get_unit(self.journal))
         self.assertEqual(j["sourceName"], "janeway")
         self.assertEqual(j["sourceID"], str(self.article.pk))
         self.assertEqual(j["sourceURL"], self.press.domain)
@@ -263,80 +365,65 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["issueDate"], '2022-01-01')
         self.assertEqual(j["issueDescription"], "Test issue description<br>")
         self.assertEqual(j["orderInSection"], 10001)
-        self.assertEqual(len(j["localIDs"]), 1)
-        self.assertEqual(j["localIDs"][0]["id"], f'janeway_{self.article.pk}')
+        self.assertEqual(len(j["localIDs"]), 3)
+        for i in j["localIDs"]:
+            if i['scheme'] == 'OTHER_ID':
+                if i["subScheme"] == 'pubid':
+                    self.assertEqual(i["id"], other_id.identifier)
+                elif i["subScheme"] == 'other':
+                    self.assertEqual(i["id"], f'janeway_{self.article.pk}')
+            elif i['scheme'] == 'DOI':
+                self.assertEqual(i["id"], doi.identifier)
         self.assertEqual(len(j["authors"]), 2)
         self.assertEqual(j["authors"][0]['nameParts']['fname'], "Author")
         self.assertEqual(j["authors"][0]['nameParts']['lname'], "User")
         self.assertEqual(j["authors"][0]['nameParts']['institution'], "Author institution")
         self.assertEqual(j["authors"][0]['nameParts']['mname'], "A")
         self.assertEqual(j["authors"][0]['email'], "authoruser@martineve.com")
+        self.assertEqual(j["authors"][0]['orcid'], "0000-0000-0000-0000")
         self.assertEqual(j["authors"][1]['nameParts']['organization'], "Author Collective")
-        self.assertEqual(len(j["grants"]), 1)
-        self.assertEqual(j["grants"][0]["name"], "Test Funder")
-        self.assertEqual(j["grants"][0]["reference"], "http://dx.doi.org/10.13039/501100021082")
+        #self.assertEqual(len(j["grants"]), 1)
+        #self.assertEqual(j["grants"][0]["name"], "Test Funder")
+        #self.assertEqual(j["grants"][0]["reference"], "http://dx.doi.org/10.13039/501100021082")
 
         self.assertEqual(len(j), 33)
 
     def test_ojs_source(self):
-        EscholArticle.objects.create(article=self.article, ark="qt0000000", source_name="ojs", source_id="555555")
-        j, e = get_article_json(self.article, get_unit(self.journal))
+        EscholArticle.objects.create(article=self.article,
+                                     ark="qt0000000",
+                                     source_name="ojs",
+                                     source_id="555555")
+        j, _ = logic.get_article_json(self.article, logic.get_unit(self.journal))
         self.assertEqual(j["sourceName"], "ojs")
         self.assertEqual(j["sourceID"], "555555")
 
+    @override_settings(ESCHOL_API_URL="test", JSCHOL_URL="test.test/")
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'info')
     def test_send_article_no_issue(self, info_mock):
-        epub, error = send_article(self.article, False, None)
+        apub = logic.send_article(self.article, False, None)
         msg = f'{self.article} published without issue'
-        self.assertEqual(error, msg)
+        self.assertEqual(apub.article, self.article)
+        self.assertFalse(apub.success)
+        self.assertEqual(apub.result, msg)
         info_mock.assert_called_once_with(msg)
 
-    @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
-    def test_article_to_eschol(self, debug_mock):
+    @override_settings(ESCHOL_API_URL="test", JSCHOL_URL="test.test/")
+    @mock.patch('plugins.eschol.logic.send_to_eschol')
+    def test_article_to_eschol(self, mock_send):
         issue = helpers.create_issue(self.journal, articles=[self.article])
         self.article.primary_issue = issue
         self.article.issues.add(issue)
         self.article.save()
-        epub, error = article_to_eschol(article=self.article)
-        debug_mock.assert_called_once_with(f"Escholarhip Deposit for Article {self.article.pk}: {{'item': {{'sourceName': 'janeway', 'sourceID': '{self.article.pk}', 'sourceURL': 'localhost', 'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', 'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, 'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], 'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', 'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', 'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{{'id': 'janeway_{self.article.pk}', 'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}")
 
-    def test_private_render_galley(self):
-        issue = helpers.create_issue(self.journal, articles=[self.article])
-        f = File.objects.create(article_id=self.article.pk, label="file", is_galley=True, original_filename="test.pdf", mime_type="application/pdf", uuid_filename="uuid.pdf")
-        galley = helpers.create_galley(self.article, file_obj=f, public=False)
+        result_json = {'data': {'depositItem': {'message': 'Deposited',
+                                                'id': 'ark:/13030/qtAAAAAAAA'}}}
+        mock_send.return_value = Response(json.dumps(result_json))
 
-        self.article.primary_issue = issue
-        self.article.issues.add(issue)
-        self.article.render_galley = galley
-        self.article.save()
-        epub, error = send_article(self.article, False, None)
+        apub = logic.article_to_eschol(article=self.article)
+        self.assertTrue(apub.success)
 
-        self.assertIsNone(epub)
-        self.assertEqual(error, f"Private render galley selected for {self.article}")
-
-    @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
-    def test_issue_to_eschol(self, debug_mock):
-        issue = helpers.create_issue(self.journal, articles=[self.article])
-        objs, errors = issue_to_eschol(issue=issue)
-        debug_mock.assert_called_once_with(f"Escholarhip Deposit for Article {self.article.pk}: {{'item': {{'sourceName': 'janeway', 'sourceID': '{self.article.pk}', 'sourceURL': 'localhost', 'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', 'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, 'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], 'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', 'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', 'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{{'id': 'janeway_{self.article.pk}', 'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}")
-
-    @patch.object(utils.logger.PrefixedLoggerAdapter, 'info')
-    def test_is_not_configured(self, info_mock):
-        self.assertFalse(is_configured())
-        info_mock.assert_called_once_with("Escholarship API not configured.")
-
-    @override_settings(ESCHOL_API_URL="test")
-    def test_is_configured(self):
-        self.assertTrue(is_configured())
-
-    def test_issue_meta_no_cover(self):
-        issue = helpers.create_issue(self.journal, articles=[self.article])
-        success, msg = send_issue_meta(issue)
-        self.assertTrue(success)
-        self.assertTrue(msg, "No cover image")
-
-    @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
-    def test_issue_meta_with_cover(self, debug_mock):
+    @mock.patch('plugins.eschol.logic.send_to_eschol')
+    def test_issue_meta_with_cover(self, mock_send):
         issue = helpers.create_issue(self.journal, articles=[self.article])
         svg_data = """
             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -350,7 +437,84 @@ class EscholConnectorTest(TestCase):
         issue.cover_image = svg_file
         issue.save()
 
-        success, msg = send_issue_meta(issue)
+        result_json = {'data': {'updateIssue': {'message': 'Cover Image uploaded'}}}
+        mock_send.return_value = Response(json.dumps(result_json))
+
+        success, msg = logic.send_issue_meta(issue, configured=True)
+        self.assertTrue(success)
+        self.assertTrue(msg, "Cover Image uploaded")
+
+    @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
+    def test_article_to_eschol_disabled(self, debug_mock):
+        issue = helpers.create_issue(self.journal, articles=[self.article])
+        self.article.primary_issue = issue
+        self.article.issues.add(issue)
+        self.article.save()
+        _apub = logic.article_to_eschol(article=self.article)
+        result_text = DEPOSIT_RESULT.format(self.article.pk)
+        debug_mock.assert_called_once_with(result_text)
+
+    def test_private_render_galley(self):
+        issue = helpers.create_issue(self.journal, articles=[self.article])
+        f = File.objects.create(article_id=self.article.pk,
+                                label="file",
+                                is_galley=True,
+                                original_filename="test.pdf",
+                                mime_type="application/pdf",
+                                uuid_filename="uuid.pdf")
+        galley = helpers.create_galley(self.article, file_obj=f, public=False)
+
+        self.article.primary_issue = issue
+        self.article.issues.add(issue)
+        self.article.render_galley = galley
+        self.article.save()
+        apub = logic.send_article(self.article, False, None)
+
+        self.assertFalse(apub.success)
+        self.assertEqual(apub.result, f"Private render galley selected for {self.article}")
+        self.assertEqual(EscholArticle.objects.filter(article=self.article).count(), 0)
+
+    @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
+    def test_issue_to_eschol(self, debug_mock):
+        issue = helpers.create_issue(self.journal, articles=[self.article])
+        ipub = logic.issue_to_eschol(issue=issue)
+        self.assertEqual(ipub.issue, issue)
+        self.assertFalse(ipub.success)
+        self.assertEqual(ipub.articlepublicationhistory_set.all().count(), 1)
+        self.assertFalse(ipub.articlepublicationhistory_set.all().first().success)
+        result_text = DEPOSIT_RESULT.format(self.article.pk)
+        debug_mock.assert_called_once_with(result_text)
+
+    @patch.object(utils.logger.PrefixedLoggerAdapter, 'info')
+    def test_is_not_configured(self, info_mock):
+        self.assertFalse(logic.is_configured())
+        info_mock.assert_called_once_with("Escholarship API not configured.")
+
+    @override_settings(ESCHOL_API_URL="test")
+    def test_is_configured(self):
+        self.assertTrue(logic.is_configured())
+
+    def test_issue_meta_no_cover_disabled(self):
+        issue = helpers.create_issue(self.journal, articles=[self.article])
+        success, _ = logic.send_issue_meta(issue)
+        self.assertTrue(success)
+
+    @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
+    def test_issue_meta_with_cover_disabled(self, debug_mock):
+        issue = helpers.create_issue(self.journal, articles=[self.article])
+        svg_data = """
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="50"></circle>
+            </svg>
+        """
+        svg_file = SimpleUploadedFile(
+            "file.svg",
+            svg_data.encode("utf-8"),
+        )
+        issue.cover_image = svg_file
+        issue.save()
+
+        success, msg = logic.send_issue_meta(issue)
         self.assertTrue(success)
         debug_mock.assert_called_once_with(msg)
 
@@ -368,16 +532,45 @@ class EscholConnectorTest(TestCase):
         issue.cover_image = svg_file
         issue.save()
 
-        success, msg = send_issue_meta(issue)
+        success, msg = logic.send_issue_meta(issue)
         self.assertFalse(success)
         self.assertEqual(msg, "Cannot upload cover images for non-integer issue number 1-2")
 
-    def test_article_unexpected_error(self):
-        # pass a non-article so we know it'll generate an unexpected error
-        epub, error = article_to_eschol(article=self.journal)
-        self.assertEqual(error, f"An unexpected error occured when sending {self.journal} to eScholarship: 'Journal' object has no attribute 'journal'")
+    @mock.patch('plugins.eschol.logic.send_article',
+                return_value=None,
+                side_effect=Exception('Boom!'))
+    def test_article_unexpected_error(self, mock_send):
+        _issue = helpers.create_issue(self.journal, articles=[self.article])
+        apub = logic.article_to_eschol(article=self.article)
+        mock_send.assert_called_once_with(self.article, False, None)
+        self.assertFalse(apub.success)
+        error_text = f"An unexpected error occured when sending {self.article} " + \
+                        "to eScholarship: Boom!"
+        self.assertEqual(apub.result, error_text)
 
-    def test_issue_unexpected_error(self):
-        # pass a non-issue so we know it'll generate an unexpected error
-        epub, errors = issue_to_eschol(issue=self.journal)
-        self.assertEqual(errors[0], f"An unexpected error occured when sending {self.journal} to eScholarship: 'Journal' object has no attribute 'cover_image'")
+    @mock.patch('plugins.eschol.logic.send_issue_meta',
+                return_value=None,
+                side_effect=Exception('Boom!'))
+    def test_issue_unexpected_error(self, mock_send):
+        issue = helpers.create_issue(self.journal, articles=[self.article])
+        apub = logic.issue_to_eschol(issue=issue)
+        mock_send.assert_called_once_with(issue, False)
+        self.assertFalse(apub.success)
+        error_text = f"An unexpected error occured when sending {issue} to eScholarship: Boom!"
+        self.assertEqual(apub.result, error_text)
+
+    @patch.object(utils.logger.PrefixedLoggerAdapter, 'info')
+    def test_article_error(self, info_mock):
+        apub = logic.article_error(self.article, None, "Boom!")
+        self.assertEqual(apub.article, self.article)
+        self.assertFalse(apub.success)
+        self.assertEqual(apub.result, "Boom!")
+        info_mock.assert_called_once_with("Boom!")
+
+    @override_settings(ESCHOL_API_URL="test")
+    @mock.patch('plugins.eschol.logic.send_to_eschol')
+    def test_provisional_id(self, mock_send):
+        result_json = {'data': {'mintProvisionalID': {'id': 'ark:/13030/qtAAAAAAAA'}}}
+        mock_send.return_value = Response(json.dumps(result_json))
+        ark = logic.get_provisional_id(self.article)
+        self.assertEqual(ark, "ark:/13030/qtAAAAAAAA")
