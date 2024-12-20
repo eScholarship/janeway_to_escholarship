@@ -171,6 +171,44 @@ class EscholConnectorTest(TestCase):
         self.assertIn(f"{base_url}{self.article.pk}/file/{f.pk}/?access=", j["contentLink"])
         self.assertEqual(j["contentFileName"], "test.pdf")
 
+    def test_html_galley(self):
+        f = File.objects.create(article_id=self.article.pk,
+                                label="file",
+                                is_galley=True,
+                                original_filename="test.html",
+                                mime_type="text/html",
+                                uuid_filename="uuid.html")
+        galley = helpers.create_galley(self.article, file_obj=f)
+        self.article.render_galley = galley
+
+        img_file = SimpleUploadedFile("test.png", b"\x00\x01\x02\x03")
+        img_obj = self.create_file(self.article, img_file, "Img file 1")
+        galley.images.add(img_obj)
+
+        css_file = File.objects.create(article_id=self.article.pk,
+                                       label="file",
+                                       is_galley=False,
+                                       original_filename="test.css",
+                                       mime_type="text/css",
+                                       uuid_filename="uuid.css")
+        galley.css_file = css_file
+        galley.save()
+
+        j, _ = logic.get_article_json(self.article, logic.get_unit(self.journal))
+
+        base_url = "http://localhost/TST/plugins/escholarship-publishing-plugin/download/"
+        self.assertIn(f"{base_url}{self.article.pk}/file/{f.pk}/?access=", j["contentLink"])
+        self.assertEqual(j["contentFileName"], "test.html")
+
+        base_furl = f"{base_url}{self.article.pk}/file/"
+        self.assertEqual(len(j['imgFiles']), 1)
+        self.assertEqual(j['imgFiles'][0]['file'], 'test.png')
+        self.assertIn(f"{base_furl}{img_obj.pk}/?access=", j['imgFiles'][0]['fetchLink'])
+
+        self.assertIn('cssFiles', j)
+        self.assertEqual(len(j['cssFiles']), 1)
+        self.assertEqual(j['cssFiles'][0]['file'], 'test.css')
+
     def test_supp_files(self):
         f1 = SimpleUploadedFile(
             "test.pdf",
