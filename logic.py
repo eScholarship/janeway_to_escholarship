@@ -132,7 +132,6 @@ def convert_data_availability(d):
 def xml_galley_to_html(article, galley, epub):
     item = {}
     supp_files = []
-    img_files = []
     # if the galley doesn't have an xsl file it will cause an error when rendering
     # so set it to the default
     if not galley.xsl_file:
@@ -189,16 +188,7 @@ def xml_galley_to_html(article, galley, epub):
                                              filename=f"{short_ark}.pdf",
                                              title=f"[PDF] {article.title}"))
 
-    for imgf in galley.images.all():
-        flink = imgf.remote_url if imgf.is_remote else get_file_url(article, imgf.pk)
-        img_files.append({"file": imgf.original_filename, "fetchLink": flink})
-
-    if galley.css_file:
-        css = galley.css_file
-        flink = css.remote_url if css.is_remote else get_file_url(article, css.pk)
-        item.update({"cssFiles": {"file": css.original_filename, "fetchLink": flink}})
-
-    return item, supp_files, img_files, epub
+    return item, supp_files, epub
 
 def get_article_json(article, unit):
     source_name = "janeway"
@@ -359,13 +349,23 @@ def get_article_json(article, unit):
             item.update({"externalLinks": [rg.remote_file]})
         elif rg.file:
             if rg.file.mime_type in ('application/xml', 'text/xml'):
-                fields, supp_files, img_files, epub = xml_galley_to_html(article, rg, epub)
+                fields, supp_files, epub = xml_galley_to_html(article, rg, epub)
                 item.update(fields)
             else:
                 item.update({
                     "contentLink": get_file_url(article, rg.file.pk),
                     "contentFileName": rg.file.original_filename,
                 })
+
+            for imgf in rg.images.all():
+                flink = imgf.remote_url if imgf.is_remote else get_file_url(article, imgf.pk)
+                img_files.append({"file": imgf.original_filename, "fetchLink": flink})
+
+            if rg.css_file:
+                css = rg.css_file
+                flink = css.remote_url if css.is_remote else get_file_url(article, css.pk)
+                item.update({"cssFiles": [{"file": css.original_filename, "fetchLink": flink}]})
+
 
     for f in article.supplementary_files.all():
         supp_files.append(get_supp_file_json(f.file, article))
