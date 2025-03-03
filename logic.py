@@ -461,36 +461,41 @@ def send_article(article, configured=False, request=None):
 
     variables = {"item": item}
     if configured:
-        r = send_to_eschol(DEPOSIT_QUERY, variables)
-
         try:
-            data = json.loads(r.text)
-            if "data" in data:
-                di = data["data"]["depositItem"]
-                msg = f'{di["message"]}: {di["id"]}'
-                logger.info(msg)
-                if request: messages.success(request, msg)
-                if epub:
-                    epub.save()
+            r = send_to_eschol(DEPOSIT_QUERY, variables)
+
+            try:
+                data = json.loads(r.text)
+                if "data" in data:
+                    di = data["data"]["depositItem"]
+                    msg = f'{di["message"]}: {di["id"]}'
+                    logger.info(msg)
+                    if request: messages.success(request, msg)
+                    if epub:
+                        epub.save()
+                    else:
+                        epub = EscholArticle.objects.create(article=article, ark=di["id"])
+                    article.is_remote = True
+                    article.remote_url = epub.get_eschol_url()
+                    article.save()
+                    if article.get_doi():
+                        register_doi(article, epub, request)
+                    else:
+                        msg = f"{article} published without DOI"
+                        logger.warning(msg)
+                        if request: messages.warning(request, msg)
                 else:
-                    epub = EscholArticle.objects.create(article=article, ark=di["id"])
-                article.is_remote = True
-                article.remote_url = epub.get_eschol_url()
-                article.save()
-                if article.get_doi():
-                    register_doi(article, epub, request)
-                else:
-                    msg = f"{article} published without DOI"
-                    logger.warning(msg)
-                    if request: messages.warning(request, msg)
-            else:
-                error_msg = f'ERROR sending Article {article.pk} to eScholarship: {data["errors"]}'
-                return article_error(article, request, error_msg)
-        except json.decoder.JSONDecodeError:
-            msg = f"An unexpected API error occured sending {article} to eScholarship"
-            apub = article_error(article, request, msg)
-            logger.error(r.text)
-            return apub
+                    error_msg = f'ERROR sending Article {article.pk} to eScholarship: {data["errors"]}'
+                    return article_error(article, request, error_msg)
+            except json.decoder.JSONDecodeError:
+                msg = f"An unexpected API error occured sending {article} to eScholarship"
+                apub = article_error(article, request, msg)
+                logger.error(r.text)
+                return apub
+        except Exception as e: #pylint: disable=broad-exception-caught
+            msg = f'An unexpected error occured when sending {article} to eScholarship: {e}'
+            return article_error(article, request, msg)
+
     else:
         logger.debug(f'Escholarhip Deposit for Article {article.pk}: {variables}')
         msg = f"eScholarship API not configured: {article} not sent"
@@ -557,9 +562,13 @@ def issue_to_eschol(**options):
     configured = is_configured()
 
     try:
+        ipub = IssuePublicationHistory.objects.create(issue=issue, success=False)
+
         success, msg = send_issue_meta(issue, configured)
 
-        ipub = IssuePublicationHistory.objects.create(issue=issue, success=success, result=msg)
+        ipub.success = success
+        ipub.result = msg
+        ipub.save()
 
         for a in issue.get_sorted_articles():
             apub = send_article(a, configured, request)
@@ -570,7 +579,8 @@ def issue_to_eschol(**options):
         msg = f'An unexpected error occured when sending {issue} to eScholarship: {e}'
         logger.error(e, exc_info=True)
         if request: messages.error(request, msg)
-        ipub = IssuePublicationHistory.objects.create(issue=issue, success=False, result=msg)
+        ipub.success = False
+        ipub.result = msg
 
     ipub.is_complete = True
     ipub.save()
@@ -582,8 +592,4 @@ def article_to_eschol(**options):
     article = options.get("article")
     configured = is_configured()
 
-    try:
-        return send_article(article, configured, request)
-    except Exception as e: #pylint: disable=broad-exception-caught
-        msg = f'An unexpected error occured when sending {article} to eScholarship: {e}'
-        return article_error(article, request, msg)
+    return send_article(article, configured, request)

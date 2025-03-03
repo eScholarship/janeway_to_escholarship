@@ -22,7 +22,7 @@ from core import models as core_models, urls # pylint: disable=unused-import
 from identifiers.models import Identifier
 
 from plugins.eschol import logic
-from plugins.eschol.models import EscholArticle
+from plugins.eschol.models import EscholArticle, IssuePublicationHistory, ArticlePublicationHistory
 
 TEST_XML = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20120330//EN" "http://jats.nlm.nih.gov/publishing/1.2/JATS-journalpublishing1.dtd">
@@ -482,6 +482,45 @@ class EscholConnectorTest(TestCase):
         self.assertTrue(success)
         self.assertTrue(msg, "Cover Image uploaded")
 
+    @override_settings(ESCHOL_API_URL="test")
+    @mock.patch('plugins.eschol.logic.send_to_eschol',
+                return_value=None,
+                side_effect=Exception('Boom!'))
+    def test_article_send_error(self, mock_send):
+        issue = helpers.create_issue(self.journal, articles=[self.article])
+        self.article.primary_issue = issue
+        self.article.issues.add(issue)
+        self.article.save()
+
+        apub = logic.article_to_eschol(article=self.article)
+        self.assertFalse(apub.success)
+        self.assertEqual(ArticlePublicationHistory.objects.filter(article=self.article).count(), 1)
+
+
+    @override_settings(ESCHOL_API_URL="test")
+    @mock.patch('plugins.eschol.logic.send_to_eschol',
+                return_value=None,
+                side_effect=Exception('Boom!'))
+    def test_issue_unexpected_error(self, mock_send):
+        d = datetime(2023, 1, 1, tzinfo=timezone.get_current_timezone())
+        article2 =  helpers.create_article(self.journal,
+                                              with_author=False,
+                                              date_published=d,
+                                              stage=STAGE_PUBLISHED,
+                                              language=None)
+        issue = helpers.create_issue(self.journal, articles=[self.article, article2])
+        self.article.primary_issue = issue
+        self.article.issues.add(issue)
+        self.article.save()
+        article2.primary_issue = issue
+        article2.issues.add(issue)
+        article2.save()
+
+        ipub = logic.issue_to_eschol(issue=issue)
+        self.assertFalse(ipub.success)
+        self.assertEqual(IssuePublicationHistory.objects.filter(issue=issue).count(), 1)
+        self.assertEqual(ipub.articlepublicationhistory_set.filter(success=False).count(), 2)
+
     @patch.object(utils.logger.PrefixedLoggerAdapter, 'debug')
     def test_article_to_eschol_disabled(self, debug_mock):
         issue = helpers.create_issue(self.journal, articles=[self.article])
@@ -573,18 +612,6 @@ class EscholConnectorTest(TestCase):
         success, msg = logic.send_issue_meta(issue)
         self.assertFalse(success)
         self.assertEqual(msg, "Cannot upload cover images for non-integer issue number 1-2")
-
-    @mock.patch('plugins.eschol.logic.send_article',
-                return_value=None,
-                side_effect=Exception('Boom!'))
-    def test_article_unexpected_error(self, mock_send):
-        _issue = helpers.create_issue(self.journal, articles=[self.article])
-        apub = logic.article_to_eschol(article=self.article)
-        mock_send.assert_called_once_with(self.article, False, None)
-        self.assertFalse(apub.success)
-        error_text = f"An unexpected error occured when sending {self.article} " + \
-                        "to eScholarship: Boom!"
-        self.assertEqual(apub.result, error_text)
 
     @mock.patch('plugins.eschol.logic.send_issue_meta',
                 return_value=None,
