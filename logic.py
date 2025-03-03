@@ -214,7 +214,7 @@ def get_article_json(article, unit):
         "published": article.date_published.strftime("%Y-%m-%d"), # required
         "isPeerReviewed": article.peer_reviewed, # required
         "contentVersion": "PUBLISHER_VERSION",
-        "journal": article.journal.name,
+        "journal": str(article.journal.name), # cast as str here, forces db to resolve
         "units": [unit], # required
         "pubRelation": "EXTERNAL_PUB"
     }
