@@ -82,7 +82,7 @@ def send_to_eschol(query, variables):
                       params=params,
                       json={'query': query, 'variables': variables},
                       headers=headers,
-                      timeout=(5, 10))
+                      timeout=(20, 30))
     if "Mysql2::Error: Deadlock" in r.text:
         time.sleep(5)
         send_to_eschol(query, variables)
