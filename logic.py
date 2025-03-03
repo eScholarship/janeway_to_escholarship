@@ -464,34 +464,33 @@ def send_article(article, configured=False, request=None):
         try:
             r = send_to_eschol(DEPOSIT_QUERY, variables)
 
-            try:
-                data = json.loads(r.text)
-                if "data" in data:
-                    di = data["data"]["depositItem"]
-                    msg = f'{di["message"]}: {di["id"]}'
-                    logger.info(msg)
-                    if request: messages.success(request, msg)
-                    if epub:
-                        epub.save()
-                    else:
-                        epub = EscholArticle.objects.create(article=article, ark=di["id"])
-                    article.is_remote = True
-                    article.remote_url = epub.get_eschol_url()
-                    article.save()
-                    if article.get_doi():
-                        register_doi(article, epub, request)
-                    else:
-                        msg = f"{article} published without DOI"
-                        logger.warning(msg)
-                        if request: messages.warning(request, msg)
+            data = json.loads(r.text)
+            if "data" in data:
+                di = data["data"]["depositItem"]
+                msg = f'{di["message"]}: {di["id"]}'
+                logger.info(msg)
+                if request: messages.success(request, msg)
+                if epub:
+                    epub.save()
                 else:
-                    error_msg = f'ERROR sending Article {article.pk} to eScholarship: {data["errors"]}'
-                    return article_error(article, request, error_msg)
-            except json.decoder.JSONDecodeError:
-                msg = f"An unexpected API error occured sending {article} to eScholarship"
-                apub = article_error(article, request, msg)
-                logger.error(r.text)
-                return apub
+                    epub = EscholArticle.objects.create(article=article, ark=di["id"])
+                article.is_remote = True
+                article.remote_url = epub.get_eschol_url()
+                article.save()
+                if article.get_doi():
+                    register_doi(article, epub, request)
+                else:
+                    msg = f"{article} published without DOI"
+                    logger.warning(msg)
+                    if request: messages.warning(request, msg)
+            else:
+                msg = f'ERROR sending Article {article.pk} to eScholarship: {data["errors"]}'
+                return article_error(article, request, msg)
+        except json.decoder.JSONDecodeError:
+            msg = f"An unexpected API error occured sending {article} to eScholarship"
+            apub = article_error(article, request, msg)
+            logger.error(r.text)
+            return apub
         except Exception as e: #pylint: disable=broad-exception-caught
             msg = f'An unexpected error occured when sending {article} to eScholarship: {e}'
             return article_error(article, request, msg)

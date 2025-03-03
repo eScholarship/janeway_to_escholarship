@@ -486,7 +486,7 @@ class EscholConnectorTest(TestCase):
     @mock.patch('plugins.eschol.logic.send_to_eschol',
                 return_value=None,
                 side_effect=Exception('Boom!'))
-    def test_article_send_error(self, mock_send):
+    def test_article_unexpected_error(self, _mock_send):
         issue = helpers.create_issue(self.journal, articles=[self.article])
         self.article.primary_issue = issue
         self.article.issues.add(issue)
@@ -501,7 +501,7 @@ class EscholConnectorTest(TestCase):
     @mock.patch('plugins.eschol.logic.send_to_eschol',
                 return_value=None,
                 side_effect=Exception('Boom!'))
-    def test_issue_unexpected_error(self, mock_send):
+    def test_issue_send_error(self, _mock_send):
         d = datetime(2023, 1, 1, tzinfo=timezone.get_current_timezone())
         article2 =  helpers.create_article(self.journal,
                                               with_author=False,
