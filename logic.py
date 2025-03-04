@@ -82,7 +82,7 @@ def send_to_eschol(query, variables):
                       params=params,
                       json={'query': query, 'variables': variables},
                       headers=headers,
-                      timeout=(5, 10))
+                      timeout=(20, 30))
     if "Mysql2::Error: Deadlock" in r.text:
         time.sleep(5)
         send_to_eschol(query, variables)
@@ -214,7 +214,7 @@ def get_article_json(article, unit):
         "published": article.date_published.strftime("%Y-%m-%d"), # required
         "isPeerReviewed": article.peer_reviewed, # required
         "contentVersion": "PUBLISHER_VERSION",
-        "journal": article.journal.name,
+        "journal": str(article.journal.name), # cast as str here, forces db to resolve
         "units": [unit], # required
         "pubRelation": "EXTERNAL_PUB"
     }
@@ -461,9 +461,9 @@ def send_article(article, configured=False, request=None):
 
     variables = {"item": item}
     if configured:
-        r = send_to_eschol(DEPOSIT_QUERY, variables)
-
         try:
+            r = send_to_eschol(DEPOSIT_QUERY, variables)
+
             data = json.loads(r.text)
             if "data" in data:
                 di = data["data"]["depositItem"]
@@ -484,13 +484,17 @@ def send_article(article, configured=False, request=None):
                     logger.warning(msg)
                     if request: messages.warning(request, msg)
             else:
-                error_msg = f'ERROR sending Article {article.pk} to eScholarship: {data["errors"]}'
-                return article_error(article, request, error_msg)
+                msg = f'ERROR sending Article {article.pk} to eScholarship: {data["errors"]}'
+                return article_error(article, request, msg)
         except json.decoder.JSONDecodeError:
             msg = f"An unexpected API error occured sending {article} to eScholarship"
             apub = article_error(article, request, msg)
             logger.error(r.text)
             return apub
+        except Exception as e: #pylint: disable=broad-exception-caught
+            msg = f'An unexpected error occured when sending {article} to eScholarship: {e}'
+            return article_error(article, request, msg)
+
     else:
         logger.debug(f'Escholarhip Deposit for Article {article.pk}: {variables}')
         msg = f"eScholarship API not configured: {article} not sent"
@@ -557,9 +561,13 @@ def issue_to_eschol(**options):
     configured = is_configured()
 
     try:
+        ipub = IssuePublicationHistory.objects.create(issue=issue, success=False)
+
         success, msg = send_issue_meta(issue, configured)
 
-        ipub = IssuePublicationHistory.objects.create(issue=issue, success=success, result=msg)
+        ipub.success = success
+        ipub.result = msg
+        ipub.save()
 
         for a in issue.get_sorted_articles():
             apub = send_article(a, configured, request)
@@ -570,7 +578,8 @@ def issue_to_eschol(**options):
         msg = f'An unexpected error occured when sending {issue} to eScholarship: {e}'
         logger.error(e, exc_info=True)
         if request: messages.error(request, msg)
-        ipub = IssuePublicationHistory.objects.create(issue=issue, success=False, result=msg)
+        ipub.success = False
+        ipub.result = msg
 
     ipub.is_complete = True
     ipub.save()
@@ -582,8 +591,4 @@ def article_to_eschol(**options):
     article = options.get("article")
     configured = is_configured()
 
-    try:
-        return send_article(article, configured, request)
-    except Exception as e: #pylint: disable=broad-exception-caught
-        msg = f'An unexpected error occured when sending {article} to eScholarship: {e}'
-        return article_error(article, request, msg)
+    return send_article(article, configured, request)
