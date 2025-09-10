@@ -10,41 +10,36 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 4
-      matrix:
-        db: [mysql]
-        python-version: [3.9]
-        include:
-          - db: mysql
-            db_port: 3306
     
     services:
       mysql:
-        image: mysql:5.7
+        image: mysql:8.4
         env:
-          MYSQL_ROOT_PASSWORD: hunter2
+          MYSQL_ROOT_PASSWORD: test_password!
+          MYSQL_DATABASE: janeway
+          MYSQL_USER: mysql
+          MYSQL_PASSWORD: test_password!
         ports:
           - 3306:3306
         options: >-
-            --health-cmd="mysqladmin ping"
-            --health-interval=10s
-            --health-timeout=5s
-            --health-retries=3
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
     - name: Checkout Janeway
       uses: actions/checkout@v4
       with:
         repository: eScholarship/janeway
-        ref: e73827dc9db693756a3fe448f7a00d9963b2f821
+        ref: d5451e1e366ff2f508fdbb1ddc7789b7d3eb717a
     - name: Checkout Eschol Plugin
       uses: actions/checkout@v4
       with:
         path: src/plugins/eschol/
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python 3.11
       uses: actions/setup-python@v3
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: 3.11
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
@@ -56,17 +51,13 @@ jobs:
     - name: Run Tests
       working-directory: ./src
       env:
-        DB: ${{ matrix.db }}
+        DB: mysql
         DB_HOST: 127.0.0.1
-        DB_PORT: ${{ matrix.db_port }}
-        DB_PASSWORD: hunter2
-        DB_VENDOR: ${{ matrix.db }}
-        DB_NAME: mysql
+        DB_PORT: 3306
+        DB_PASSWORD: test_password!
+        DB_VENDOR: mysql
+        DB_NAME: janeway
         DB_USER: root
         JANEWAY_SETTINGS_MODULE: core.dev_settings
       run: |
-        python manage.py migrate press
-        python manage.py migrate
-        python manage.py install_plugins
-        python manage.py migrate eschol        
-        python manage.py test eschol
+        python manage.py install_janeway --use-defaults

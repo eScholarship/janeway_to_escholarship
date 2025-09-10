@@ -216,7 +216,7 @@ def get_article_json(article, unit):
         "contentVersion": "PUBLISHER_VERSION",
         "journal": str(article.journal.name), # cast as str here, forces db to resolve
         "units": [unit], # required
-        "pubRelation": "EXTERNAL_PUB"
+        "pubRelation": "INTERNAL_PUB"
     }
 
     if article.abstract:
