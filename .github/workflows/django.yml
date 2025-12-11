@@ -61,3 +61,4 @@ jobs:
         JANEWAY_SETTINGS_MODULE: core.dev_settings
       run: |
         python manage.py install_janeway --use-defaults
+        python manage.py test eschol
