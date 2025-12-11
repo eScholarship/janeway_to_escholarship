@@ -34,7 +34,7 @@ DEPOSIT_RESULT = """Escholarhip Deposit for Article {0}: \
 'submitterEmail': 'user1@test.edu', 'title': 'Test Article from Utils Testing Helpers', \
 'type': 'ARTICLE', 'published': '2023-01-01', 'isPeerReviewed': True, \
 'contentVersion': 'PUBLISHER_VERSION', 'journal': 'Journal One', 'units': ['TST'], \
-'pubRelation': 'EXTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', \
+'pubRelation': 'INTERNAL_PUB', 'datePublished': '2023-01-01', 'sectionHeader': 'Article', \
 'volume': '0', 'issue': '0', 'issueTitle': 'Test Issue from Utils Testing Helpers', \
 'issueDate': '2022-01-01', 'orderInSection': 10001, 'localIDs': [{{'id': 'janeway_{0}', \
 'scheme': 'OTHER_ID', 'subScheme': 'other'}}]}}}}"""
@@ -320,7 +320,7 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["journal"], self.journal.name)
         self.assertEqual(len(j["units"]), 1)
         self.assertEqual(j["units"][0], self.journal.code)
-        self.assertEqual(j["pubRelation"], "EXTERNAL_PUB")
+        self.assertEqual(j["pubRelation"], "INTERNAL_PUB")
         self.assertEqual(len(j["localIDs"]), 1)
         self.assertEqual(j["localIDs"][0]["id"], f'janeway_{mini.pk}')
         self.assertEqual(len(j), 16)
@@ -384,7 +384,7 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["journal"], self.journal.name)
         self.assertEqual(len(j["units"]), 1)
         self.assertEqual(j["units"][0], self.journal.code)
-        self.assertEqual(j["pubRelation"], "EXTERNAL_PUB")
+        self.assertEqual(j["pubRelation"], "INTERNAL_PUB")
         self.assertEqual(j["abstract"], "This is the abstract")
         self.assertEqual(j["dateSubmitted"], "2022-01-01")
         self.assertEqual(j["dateAccepted"], "2022-02-02")

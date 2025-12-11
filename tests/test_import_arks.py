@@ -2,7 +2,7 @@ import os
 from io import StringIO
 
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from utils.testing import helpers
 from utils.models import LogEntry
@@ -63,6 +63,7 @@ class TestImportArks(TestCase):
         )
         return out.getvalue()
 
+    @override_settings(JSCHOL_URL="test.test/")
     def test_match_source_id_to_external_id(self):
         _entry = self.create_log_entry(LOG_ENTRY1)
         _out = self.call_command(self.journal.code, self.get_file_path("test1.tsv"))
@@ -75,6 +76,7 @@ class TestImportArks(TestCase):
         i = Identifier.objects.get(article=self.article)
         self.assertEqual(i.identifier, "10.00000/C40001")
 
+    @override_settings(JSCHOL_URL="test.test/")
     def test_match_source_id_to_local_id(self):
         _entry = self.create_log_entry(LOG_ENTRY1)
         _out = self.call_command(self.journal.code, self.get_file_path("test2.tsv"))
@@ -87,6 +89,7 @@ class TestImportArks(TestCase):
         i = Identifier.objects.get(article=self.article)
         self.assertEqual(i.identifier, "10.00000/C40002")
 
+    @override_settings(JSCHOL_URL="test.test/")
     def test_ark_from_log_entry(self):
         _entry = self.create_log_entry(LOG_ENTRY2)
         _out = self.call_command(self.journal.code, self.get_file_path("test3.tsv"))
@@ -98,6 +101,7 @@ class TestImportArks(TestCase):
         i = Identifier.objects.get(article=self.article)
         self.assertEqual(i.identifier, "10.00000/C40003")
 
+    @override_settings(JSCHOL_URL="test.test/")
     def test_existing_doi(self):
         _entry = self.create_log_entry(LOG_ENTRY1)
         Identifier.objects.create(article=self.article, id_type='doi', identifier="10.00000/C40004")
@@ -109,6 +113,7 @@ class TestImportArks(TestCase):
         i = Identifier.objects.get(article=self.article)
         self.assertEqual(i.identifier, "10.00000/C40001")
 
+    @override_settings(JSCHOL_URL="test.test/")
     def test_l2(self):
         l2 = Journal.objects.create(code="uccllt_l2", domain="testserver2")
         self.article = helpers.create_article(l2)
@@ -117,6 +122,7 @@ class TestImportArks(TestCase):
         _out = self.call_command(l2.code, self.get_file_path("test4.tsv"))
         self.assertEqual(EscholArticle.objects.count(), 1)
 
+    @override_settings(JSCHOL_URL="test.test/")
     def test_existing_escholarticle(self):
         _e = EscholArticle.objects.create(article=self.article,
                                           ark='ark:/13030/qt00000002',
