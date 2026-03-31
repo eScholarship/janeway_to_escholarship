@@ -368,7 +368,7 @@ def get_article_json(article, unit):
 
 
     for f in article.supplementary_files.all():
-        supp_files.append(get_supp_file_json(f.file, article))
+        supp_files.append(get_supp_file_json(f.file, article, title=f.label))
 
     if len(supp_files) > 0:
         item.update({"suppFiles": supp_files})
