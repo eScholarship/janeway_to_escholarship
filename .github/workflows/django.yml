@@ -16,7 +16,7 @@ jobs:
         image: postgres:15
         env:
           POSTGRES_PASSWORD: test_password!
-          POSTGRES_DATABASE: janeway
+          POSTGRES_DB: janeway
           POSTGRES_USER: postgres
         ports:
           - 5432:5432
