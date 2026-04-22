@@ -194,7 +194,7 @@ def get_escholarticle(article):
     epubs = EscholArticle.objects.filter(article=article)
     if epubs.count() == 0:
         return None
-    elif epubs.count() > 1:
+    if epubs.count() > 1:
         msg = f"Multiple EscholArticles found for {article}"
         logger.error(msg)
     return epubs.first()
