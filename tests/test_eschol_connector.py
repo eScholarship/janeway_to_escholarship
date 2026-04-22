@@ -323,7 +323,7 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["pubRelation"], "INTERNAL_PUB")
         self.assertEqual(len(j["localIDs"]), 1)
         self.assertEqual(j["localIDs"][0]["id"], f'janeway_{mini.pk}')
-        self.assertEqual(len(j), 16)
+        self.assertEqual(len(j), 15)
 
     def test_kitchen_sink(self):
         issue = helpers.create_issue(self.journal, articles=[self.article])
