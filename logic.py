@@ -190,19 +190,26 @@ def xml_galley_to_html(article, galley, epub):
 
     return item, supp_files, epub
 
+def get_escholarticle(article):
+    epubs = EscholArticle.objects.filter(article=article)
+    if epubs.count() == 0:
+        return None
+    if epubs.count() > 1:
+        msg = f"Multiple EscholArticles found for {article}"
+        logger.error(msg)
+    return epubs.first()
+
 def get_article_json(article, unit):
     source_name = "janeway"
     source_id = article.pk
-    if EscholArticle.objects.filter(article=article).exists():
-        epub = EscholArticle.objects.get(article=article)
-        if epub.source_name:
-            source_name = epub.source_name
-            source_id = epub.source_id
-            if not source_id:
-                msg = f"{article} has source {epub.source_name} but source_id is not defined"
-                logger.error(msg)
-    else:
-        epub = False
+    epub = get_escholarticle(article)
+
+    if epub:
+        source_name = epub.source_name
+        source_id = epub.source_id
+        if source_name and not source_id:
+            msg = f"{article} has source {source_name} but source_id is not defined"
+            logger.error(msg)
 
     item = {
         "sourceName": source_name, # required
@@ -442,7 +449,7 @@ def send_article(article, configured=False, request=None):
     if not article.is_published:
         return article_error(article, request, f'{article} is not published')
 
-    if not article.issue:
+    if article.issue is None:
         return article_error(article, request, f'{article} published without issue')
 
     if not article.owner:
@@ -470,9 +477,9 @@ def send_article(article, configured=False, request=None):
                 msg = f'{di["message"]}: {di["id"]}'
                 logger.info(msg)
                 if request: messages.success(request, msg)
-                if epub:
-                    epub.save()
-                else:
+                # try and get the escholarticle again in case it was created
+                epub = get_escholarticle(article)
+                if not epub:
                     epub = EscholArticle.objects.create(article=article, ark=di["id"])
                 article.is_remote = True
                 article.remote_url = epub.get_eschol_url()
