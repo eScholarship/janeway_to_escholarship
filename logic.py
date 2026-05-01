@@ -204,10 +204,10 @@ def get_article_json(article, unit):
     source_id = article.pk
     epub = get_escholarticle(article)
 
-    if epub:
+    if epub and epub.source_name:
         source_name = epub.source_name
         source_id = epub.source_id
-        if source_name and not source_id:
+        if not source_id:
             msg = f"{article} has source {source_name} but source_id is not defined"
             logger.error(msg)
 
