@@ -17,6 +17,7 @@ class ArticlePublicationHistoryAdmin(admin.ModelAdmin):
 
 class IssuePublicationHistoryAdmin(admin.ModelAdmin):
     raw_id_fields = ('issue',)
+    list_filter = ('success', 'is_complete',)
 
 admin.site.register(JournalUnit, JournalUnitAdmin)
 admin.site.register(EscholArticle, EscholArticleAdmin)
