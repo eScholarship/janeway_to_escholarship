@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseForbidden
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
 
 from django_q.tasks import async_task
 
@@ -18,6 +19,13 @@ from .plugin_settings import PLUGIN_NAME
 
 def publish_issue_task(issue_id):
     issue = Issue.objects.get(pk=issue_id)
+
+    timeout = datetime.now() - timedelta(seconds=settings.DJANGO_Q["retry"])
+    for h in IssuePublicationHistory.objects.filter(issue=issue, is_complete=False, date__lt=timeout):
+        h.is_complete = True
+        h.success = False
+        h.save()
+
     if not IssuePublicationHistory.objects.filter(issue=issue, is_complete=False).exists():
         ipub = issue_to_eschol(issue=issue)
         return str(ipub)
