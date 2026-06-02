@@ -23,7 +23,7 @@ def publish_issue_task(issue_id):
     # Mark complete and unsuccessful any issue publication
     # attempts that have timed out
     q_settings = getattr(settings, 'DJANGO_Q', {})
-    delta = timedelta(seconds=(q_settings.get("retry", 400)))
+    delta = timedelta(seconds=q_settings.get("retry", 400))
     timeout = datetime.now() - delta
     objs = IssuePublicationHistory.objects.filter(
         issue=issue,
