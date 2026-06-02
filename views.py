@@ -21,7 +21,12 @@ def publish_issue_task(issue_id):
     issue = Issue.objects.get(pk=issue_id)
 
     timeout = datetime.now() - timedelta(seconds=settings.DJANGO_Q["retry"])
-    for h in IssuePublicationHistory.objects.filter(issue=issue, is_complete=False, date__lt=timeout):
+    objs = IssuePublicationHistory.objects.filter(
+        issue=issue,
+        is_complete=False,
+        date__lt=timeout
+    )
+    for h in objs:
         h.is_complete = True
         h.success = False
         h.save()

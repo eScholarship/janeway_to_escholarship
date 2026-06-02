@@ -84,7 +84,7 @@ def send_to_eschol(query, variables):
                       headers=headers,
                       timeout=(20, 30))
     if "Mysql2::Error: Deadlock" in r.text:
-        logger.info(f"Encountered eScholarship deadlock retrying...")
+        logger.info("Encountered eScholarship deadlock retrying...")
         time.sleep(10)
         r = send_to_eschol(query, variables)
     return r
