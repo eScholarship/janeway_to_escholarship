@@ -20,7 +20,11 @@ from .plugin_settings import PLUGIN_NAME
 def publish_issue_task(issue_id):
     issue = Issue.objects.get(pk=issue_id)
 
-    timeout = datetime.now() - timedelta(seconds=settings.DJANGO_Q["retry"])
+    # Mark complete and unsuccessful any issue publication
+    # attempts that have timed out
+    q_settings = getattr(settings, 'DJANGO_Q', {})
+    delta = timedelta(seconds=(q_settings.get("retry", 400)))
+    timeout = datetime.now() - delta
     objs = IssuePublicationHistory.objects.filter(
         issue=issue,
         is_complete=False,
