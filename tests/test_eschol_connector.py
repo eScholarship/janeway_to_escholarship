@@ -460,6 +460,26 @@ class EscholConnectorTest(TestCase):
         apub = logic.article_to_eschol(article=self.article)
         self.assertTrue(apub.success)
 
+    @override_settings(
+        ESCHOL_API_URL="test",
+        ESCHOL_ACCESS_TOKEN="testtest",
+        ESCHOL_PRIV_KEY="key",
+        JSCHOL_URL="test.test/",
+        ESCHOL_SLEEP_MAX=20
+    )
+    @mock.patch('plugins.eschol.logic.requests.post')
+    def test_eschol_deadlock(self, mock_send):
+        issue = helpers.create_issue(self.journal, articles=[self.article])
+        self.article.primary_issue = issue
+        self.article.issues.add(issue)
+        self.article.save()
+
+        mock_send.return_value = Response("Mysql2::Error: Deadlock")
+
+        apub = logic.article_to_eschol(article=self.article)
+        assert mock_send.call_count == 2
+        self.assertFalse(apub.success)
+
     @mock.patch('plugins.eschol.logic.send_to_eschol')
     def test_issue_meta_with_cover(self, mock_send):
         issue = helpers.create_issue(self.journal, articles=[self.article])
