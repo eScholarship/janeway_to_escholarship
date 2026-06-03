@@ -74,18 +74,27 @@ def save_article_file(output, article, original_filename, kwargs=None):
 
     return new_file
 
-def send_to_eschol(query, variables):
+def send_to_eschol(query, variables, sleep=10):
     url = settings.ESCHOL_API_URL
     params = {'access': settings.ESCHOL_ACCESS_TOKEN}
     headers = {"Privileged": settings.ESCHOL_PRIV_KEY}
     r = requests.post(url,
-                      params=params,
-                      json={'query': query, 'variables': variables},
-                      headers=headers,
-                      timeout=(20, 30))
+                     params=params,
+                     json={'query': query, 'variables': variables},
+                     headers=headers,
+                     timeout=(20, 30))
+    # Sometimes submit throws a deadlock error that comes back in the
+    # API text response (rather than as an error code or a proper json error message)
+    # Once we move off of submit-style backend for the API we should be able
+    # to remove this special case
     if "Mysql2::Error: Deadlock" in r.text:
-        time.sleep(5)
-        send_to_eschol(query, variables)
+        if sleep < getattr(settings, "ESCHOL_SLEEP_MAX", 100):
+            logger.info("Encountered eScholarship deadlock retrying...")
+            time.sleep(sleep)
+            # If we're repeatedly getting deadlock errors increase the sleep time
+            r = send_to_eschol(query, variables, sleep=sleep * 2)
+        else:
+            logger.error(f"Deadlock sleep max reached: {variables}")
     return r
 
 def get_provisional_id(article):
