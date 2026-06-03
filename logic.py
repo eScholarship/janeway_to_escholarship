@@ -92,7 +92,7 @@ def send_to_eschol(query, variables, sleep=10):
             logger.info("Encountered eScholarship deadlock retrying...")
             time.sleep(sleep)
             # If we're repeatedly getting deadlock errors increase the sleep time
-            r = send_to_eschol(query, variables, sleep=(sleep * 2))
+            r = send_to_eschol(query, variables, sleep=sleep * 2)
         else:
             logger.error(f"Deadlock sleep max reached: {variables}")
     return r
