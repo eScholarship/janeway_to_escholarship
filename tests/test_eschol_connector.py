@@ -347,7 +347,11 @@ class EscholConnectorTest(TestCase):
 
     def test_section_ordering(self):
         d = datetime(2023, 1, 1, tzinfo=timezone.get_current_timezone())
-        section = helpers.create_section(journal=self.journal, name="Section 2", plural="Section 2s")
+        section = helpers.create_section(
+            journal=self.journal,
+            name="Section 2",
+            plural="Section 2s"
+        )
         test_article = helpers.create_article(self.journal,
                                               with_author=False,
                                               date_published=d,
