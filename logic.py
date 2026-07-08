@@ -298,7 +298,7 @@ def get_article_json(article, unit):
         if SectionOrdering.objects.filter(issue=issue, section=article.section).exists():
             sorder = SectionOrdering.objects.get(issue=issue, section=article.section).order + 1
         else:
-            sorder = 1
+            sorder = list(issue.get_sorted_articles().values_list('section__pk', flat=True).distinct()).index(article.section.pk) + 1
         if ArticleOrdering.objects.filter(issue=issue,
                                           section=article.section,
                                           article=article).exists():
@@ -306,7 +306,7 @@ def get_article_json(article, unit):
                                                  section=article.section,
                                                  article=article).order + 1
         else:
-            aorder = 1
+            aorder = list(issue.get_sorted_articles().filter(section=article.section).values_list('pk', flat=True)).index(article.pk) + 1
         issue_vars = {"volume": str(issue.volume),
                       "issue": str(issue.issue),
                       "issueTitle": issue.issue_title,
