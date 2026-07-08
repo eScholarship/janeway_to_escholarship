@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from django.conf import settings
 from django.utils import timezone
 from django.core.files.uploadedfile import SimpleUploadedFile
-from journal.models import ArticleOrdering, SectionOrdering
+from journal.models import ArticleOrdering
 
 from submission.models import STAGE_PUBLISHED, Licence, Keyword, Field, FieldAnswer
 from submission.models import FrozenAuthor
@@ -360,7 +360,6 @@ class EscholConnectorTest(TestCase):
         issue = helpers.create_issue(self.journal, articles=[self.article, test_article])
         issue.issue_description = "Test issue description<br>"
         issue.save()
-        print(SectionOrdering.objects.filter(issue=issue, section=section))
         ArticleOrdering.objects.filter(issue=issue,
                                        section=test_article.section,
                                        article=test_article).delete()
