@@ -1,5 +1,6 @@
 from utils import models
 from utils.logger import get_logger
+from utils.install import update_settings
 
 from events import logic as event_logic
 
@@ -35,6 +36,10 @@ def install():
         plugin.save()
     else:
         print(f'Plugin {PLUGIN_NAME} is already installed.')
+
+    update_settings(
+        file_path="plugins/eschol/install/settings.json"
+    )
 
 def register_for_events():
     pass

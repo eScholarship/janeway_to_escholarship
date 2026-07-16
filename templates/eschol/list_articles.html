@@ -1,88 +1,84 @@
-{% extends "admin/core/base.html" %}
-{% load foundation %}
+{% extends "eschol/base.html" %}
 
 {% block title %}{{ plugin_name }} -- {{ issue }}{% endblock %}
 
 {% block breadcrumbs %}
     {{ block.super }}
-    <li><a href="{% url 'eschol_manager' %}">{{ plugin_name }}</a></li>
     <li>Publish Issue</li>
 {% endblock breadcrumbs %}
 
-{% block body %}
-<div class="box">
-    <div class="title-area">
-        <h2>Publish {% include "eschol/includes/issue.html" with issue=issue %}</h2>
-    </div>
-    <div class="content">
-        <a class="button" href="{% url 'eschol_publish_issue' issue.pk %}">Publish Full Issue</a>
-        <a class="button" href="{% url 'manage_issues_id' issue.pk %}">Manage Issue</a>
-        <h3>Articles</h3>
-        <table class="table table-bordered small" id="eschol_publish_articles">
-            <thead>
-            <tr>
-                <th>ID</th>
-                <th>Title</th>
-                <th>Date Published</th>
-                <th>ARK</th>
-                <th>DOI</th>
-                <th></th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for article in articles %}
-                {% with article.escholarticle_set.all|first as ea %}
-                <tr>
-                    <td>
-                        {% if article.stage and article.stage != 'Rejected' and article.stage != 'Published' %}
-                            <a href="{{ article.current_workflow_element_url }}">{{ article.pk }}</a>
-                        {% else %}
-                            <a href="{% external_journal_url article.journal 'manage_archive_article' article.pk %}">{{ article.pk }}</a>
-                        {% endif %}
-                    </td>
-                    {% if ea %}
-                    <td><a href="{{ ea.get_eschol_url }}">{{ article.title }}</a></td>
-                    {% else %}
-                    <td>{{ article.title }}</td>
-                    {% endif %}
-                    <td>{% if ea %}{{ ea.date_published }}{% else %} (not published){% endif %}</td>
-                    <td>{% if ea %}{{ ea.ark }}{% endif %}</td>
-                    <td>
-                        {% if ea and ea.is_doi_registered %}
-                            {{ article.get_doi }}
-                        {% elif ea.doi_result_text %}
-                            {{ ea.doi_result_text }}
-                        {% else %}
-                            (not registered)
-                        {% endif %}
-                    </td>
-                    <td><a href="{% url 'eschol_publish_article' article.pk %}">Publish</a></td>
-                </tr>
-                {% endwith %}
-            {% endfor %}
-            </tbody>
-        </table>
-        {% if pub_history|length > 0 %}
-        <h3>Issue publication history</h3>
-        <table class="table table-bordered small" id="eschol_publish_articles">
-            <thead>
-            <tr>
-                <th>Date</th>
-                <th>Successful</th>
-                <th>Result</th>
-            </tr>
-            </thead>
-            <tbody>
-                {% for p in pub_history %}
-                <tr>
-                    <td>{{ p.date }}</td>
-                    <td>{% if p.is_complete %}{% if p.success %}<img src="/static/admin/img/icon-yes.svg" alt="True">{% else %}<img src="/static/admin/img/icon-no.svg" alt="False">{% endif %}{% endif %}</td>
-                    <td>{{ p }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% endif %}
-    </div>
+{% block content %}
+<div class="title-area">
+    <h2>Publish {% include "eschol/includes/issue.html" with issue=issue %}</h2>
 </div>
-{% endblock body %}
+<div class="content">
+    <a class="button" href="{% url 'eschol_publish_issue' issue.pk %}">Publish Full Issue</a>
+    <a class="button" href="{% url 'manage_issues_id' issue.pk %}">Manage Issue</a>
+    <h3>Articles</h3>
+    <table class="table table-bordered small" id="eschol_publish_articles">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Date Published</th>
+            <th>ARK</th>
+            <th>DOI</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for article in articles %}
+            {% with article.escholarticle_set.all|first as ea %}
+            <tr>
+                <td>
+                    {% if article.stage and article.stage != 'Rejected' and article.stage != 'Published' %}
+                        <a href="{{ article.current_workflow_element_url }}">{{ article.pk }}</a>
+                    {% else %}
+                        <a href="{% external_journal_url article.journal 'manage_archive_article' article.pk %}">{{ article.pk }}</a>
+                    {% endif %}
+                </td>
+                {% if ea %}
+                <td><a href="{{ ea.get_eschol_url }}">{{ article.title }}</a></td>
+                {% else %}
+                <td>{{ article.title }}</td>
+                {% endif %}
+                <td>{% if ea %}{{ ea.date_published }}{% else %} (not published){% endif %}</td>
+                <td>{% if ea %}{{ ea.ark }}{% endif %}</td>
+                <td>
+                    {% if ea and ea.is_doi_registered %}
+                        {{ article.get_doi }}
+                    {% elif ea.doi_result_text %}
+                        {{ ea.doi_result_text }}
+                    {% else %}
+                        (not registered)
+                    {% endif %}
+                </td>
+                <td><a href="{% url 'eschol_publish_article' article.pk %}">Publish</a></td>
+            </tr>
+            {% endwith %}
+        {% endfor %}
+        </tbody>
+    </table>
+    {% if pub_history|length > 0 %}
+    <h3>Issue publication history</h3>
+    <table class="table table-bordered small" id="eschol_publish_articles">
+        <thead>
+        <tr>
+            <th>Date</th>
+            <th>Successful</th>
+            <th>Result</th>
+        </tr>
+        </thead>
+        <tbody>
+            {% for p in pub_history %}
+            <tr>
+                <td>{{ p.date }}</td>
+                <td>{% if p.is_complete %}{% if p.success %}<img src="/static/admin/img/icon-yes.svg" alt="True">{% else %}<img src="/static/admin/img/icon-no.svg" alt="False">{% endif %}{% endif %}</td>
+                <td>{{ p }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock content %}
