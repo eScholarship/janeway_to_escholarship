@@ -8,6 +8,7 @@ from django.test import TestCase, override_settings
 from django.conf import settings
 from django.utils import timezone
 from django.core.files.uploadedfile import SimpleUploadedFile
+from journal.models import ArticleOrdering
 
 from submission.models import STAGE_PUBLISHED, Licence, Keyword, Field, FieldAnswer
 from submission.models import FrozenAuthor
@@ -325,6 +326,50 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["localIDs"][0]["id"], f'janeway_{mini.pk}')
         self.assertEqual(len(j), 16)
 
+    def test_article_ordering(self):
+        d = datetime(2023, 1, 1, tzinfo=timezone.get_current_timezone())
+        test_article = helpers.create_article(self.journal,
+                                              with_author=False,
+                                              date_published=d,
+                                              stage=STAGE_PUBLISHED,
+                                              language=None)
+        test_article.owner = self.user
+        test_article.save()
+
+        issue = helpers.create_issue(self.journal, articles=[self.article, test_article])
+        issue.issue_description = "Test issue description<br>"
+        issue.save()
+        ArticleOrdering.objects.filter(issue=issue,
+                                       section=test_article.section,
+                                       article=test_article).delete()
+        j, _ = logic.get_article_json(test_article, logic.get_unit(self.journal))
+        self.assertEqual(j["orderInSection"], 10002)
+
+    def test_section_ordering(self):
+        d = datetime(2023, 1, 1, tzinfo=timezone.get_current_timezone())
+        section = helpers.create_section(
+            journal=self.journal,
+            name="Section 2",
+            plural="Section 2s"
+        )
+        test_article = helpers.create_article(self.journal,
+                                              with_author=False,
+                                              date_published=d,
+                                              stage=STAGE_PUBLISHED,
+                                              language=None)
+        test_article.owner = self.user
+        test_article.section = section
+        test_article.save()
+
+        issue = helpers.create_issue(self.journal, articles=[self.article, test_article])
+        issue.issue_description = "Test issue description<br>"
+        issue.save()
+        ArticleOrdering.objects.filter(issue=issue,
+                                       section=test_article.section,
+                                       article=test_article).delete()
+        j, _ = logic.get_article_json(test_article, logic.get_unit(self.journal))
+        self.assertEqual(j["orderInSection"], 20001)
+
     def test_kitchen_sink(self):
         issue = helpers.create_issue(self.journal, articles=[self.article])
         issue.issue_description = "Test issue description<br>"
@@ -420,9 +465,6 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j["authors"][0]['email'], "authoruser@martineve.com")
         self.assertEqual(j["authors"][0]['orcid'], "0000-0000-0000-0000")
         self.assertEqual(j["authors"][1]['nameParts']['organization'], "Author Collective")
-        #self.assertEqual(len(j["grants"]), 1)
-        #self.assertEqual(j["grants"][0]["name"], "Test Funder")
-        #self.assertEqual(j["grants"][0]["reference"], "http://dx.doi.org/10.13039/501100021082")
 
         self.assertEqual(len(j), 33)
 
