@@ -34,7 +34,16 @@
                 {% if history.count %}
                     <td>{{ history.0.date }}</td>
                     <td>{% if history.0.success %}<img src="/static/admin/img/icon-yes.svg" alt="True">{% else %}<img src="/static/admin/img/icon-no.svg" alt="False">{% endif %}</td>
-                    <td>{{ history.0.result_text }}</td>
+                    <td>
+                        <div class="box">
+                            {{ history.0.result_text }}
+                        </div>
+                        {% if history.0.result %}
+                        <div class="box alert" role="alert">
+                            {{ history.0.result }}
+                        </div>
+                    {% endif %}
+                    </td>
                 {% else %}
                     <td>(no publication history)</td>
                     <td></td>
