@@ -26,7 +26,7 @@
         "type": "char"
       },
       "value": {
-        "default": "eScholarship is currently down so you may not be able to view published articles"
+        "default": "eScholarship is experiencing an outage which may cause delays when publishing or updating content."
       }
     },
     {
@@ -41,7 +41,7 @@
         "type": "char"
       },
       "value": {
-        "default": "Since eScholarship is down you may not be able to view this article now but it should be available when eScholarship returns"
+        "default": "Publication succeeded, but eScholarship is experiencing an outage which may delay public visibility of your articles."
       }
     },
     {
@@ -56,7 +56,7 @@
         "type": "char"
       },
       "value": {
-        "default": "Publication failed this may be due to problems with eScholarship.  Please try re-publishing later."
+        "default": "Publication encountered an error due to an eScholarship outage. Please wait at least 1 hour before attempting to publish again."
       }
     }
 ]
