@@ -1,0 +1,62 @@
+[
+    {
+      "group": {
+        "name": "plugin:eschol"
+      },
+      "setting": {
+        "description": "Activates warning messages if eScholarship is down",
+        "is_translatable": false,
+        "name": "escholarship_down",
+        "pretty_name": "eScholarship down",
+        "type": "boolean"
+      },
+      "value": {
+        "default": "off"
+      }
+    },
+    {
+      "group": {
+        "name": "plugin:eschol"
+      },
+      "setting": {
+        "description": "Message to display on all plugin pages if eScholarship is down",
+        "is_translatable": false,
+        "name": "escholarship_down_message",
+        "pretty_name": "eScholarship down message",
+        "type": "char"
+      },
+      "value": {
+        "default": "eScholarship is experiencing an outage which may cause delays when publishing or updating content."
+      }
+    },
+    {
+      "group": {
+        "name": "plugin:eschol"
+      },
+      "setting": {
+        "description": "Message to display if eScholarship is down and publication succeeds",
+        "is_translatable": false,
+        "name": "escholarship_down_publication_success_message",
+        "pretty_name": "eScholarship down success message",
+        "type": "char"
+      },
+      "value": {
+        "default": "Publication succeeded, but eScholarship is experiencing an outage which may delay public visibility of your articles."
+      }
+    },
+    {
+      "group": {
+        "name": "plugin:eschol"
+      },
+      "setting": {
+        "description": "Message to display if eScholarship is down and publication fails",
+        "is_translatable": false,
+        "name": "escholarship_down_publication_failed_message",
+        "pretty_name": "eScholarship down failure message",
+        "type": "char"
+      },
+      "value": {
+        "default": "Publication encountered an error due to an eScholarship outage. Please wait at least 1 hour before attempting to publish again."
+      }
+    }
+]

@@ -1,36 +1,40 @@
-{% extends "admin/core/base.html" %}
-{% load foundation %}
+{% extends "eschol/base.html" %}
+{% load settings %}
 
 {% block title %}{{ plugin_name }} -- Publish {{ obj }}{% endblock %}
 
 {% block breadcrumbs %}
     {{ block.super }}
-    <li><a href="{% url 'eschol_manager' %}">{{ plugin_name }}</a></li>
     <li><a href="{% url 'eschol_list_articles' issue.pk %}">Publish Issue</a></li>
     <li>Published {{ obj_name }}</li>
 {% endblock breadcrumbs %}
 
-{% block body %}
-<div class="box">
-    <div class="title-area">
-        <h2>Published {{ obj }}</h2>
-    </div>
-    {% if pub_history.success %}
+{% block content %}
+{% setting_var request.journal 'escholarship_down' as eschol_down %}
+<div class="title-area">
+    <h2>Published {{ obj }}</h2>
+</div>
+{% if pub_history.success %}
     <div class="success content">
         <p>{{ pub_history }}</p>
     </div>
-        {% with pub_history.get_doi_error as doi_error %}
-        {% if doi_error %}
-        <div class="alert content">
-            <p>EZID DOI registration failure: {{ doi_error }}</p>
-        </div>
-        {% endif %}
-        {% endwith %}
-    {% else %}
+    {% with pub_history.get_doi_error as doi_error %}
+    {% if doi_error %}
+    <div class="alert content">
+        <p>EZID DOI registration failure: {{ doi_error }}</p>
+    </div>
+    {% endif %}
+    {% if eschol_down %}
+        <div class="box warning">{{ request.journal|setting:'escholarship_down_publication_success_message' }}</div>
+    {% endif %}
+{% endwith %}
+{% else %}
     <div class="alert content">
         <p>{{ pub_history }}</p>
         <p>{{ pub_history.result }}</p>
+        {% if eschol_down %}
+            <div class="box alert">{{ request.journal|setting:'escholarship_down_publication_failed_message' }}</div>
+        {% endif %}
     </div>
-    {% endif %}
-</div>
-{% endblock body %}
+{% endif %}
+{% endblock content %}
