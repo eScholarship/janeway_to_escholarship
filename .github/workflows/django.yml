@@ -45,7 +45,9 @@ jobs:
         pip install -r requirements.txt
         pip install django_q
     - name: Install xmllint
-      run: sudo apt-get install -y libxml2-utils --fix-missing
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --fix-missing libxml2-utils
     - name: Run Tests
       working-directory: ./src
       env:
