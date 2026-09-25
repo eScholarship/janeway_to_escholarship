@@ -36,6 +36,6 @@ jobs:
     - name: Analysing the code with pylint
       env:
         PYTHONPATH: ./src/
+        DJANGO_SETTINGS_MODULE: core.dev_settings
       run: |
-        export DJANGO_SETTINGS_MODULE=core.dev_settings
         pylint --load-plugins pylint_django --disable=missing-function-docstring,missing-module-docstring,missing-class-docstring,multiple-statements,too-many-arguments,too-many-locals,too-many-branches,too-many-statements,multiple-imports,too-many-return-statements --ignore=migrations src/plugins/eschol/
