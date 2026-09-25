@@ -37,4 +37,5 @@ jobs:
       env:
         PYTHONPATH: ./src/
       run: |
-        pylint --load-plugins pylint_django --django-settings-module=core.dev_settings --disable=missing-function-docstring,missing-module-docstring,missing-class-docstring,multiple-statements,too-many-arguments,too-many-locals,too-many-branches,too-many-statements,multiple-imports,too-many-return-statements --ignore=migrations src/plugins/eschol/
+        export DJANGO_SETTINGS_MODULE=core.dev_settings
+        pylint --load-plugins pylint_django --disable=missing-function-docstring,missing-module-docstring,missing-class-docstring,multiple-statements,too-many-arguments,too-many-locals,too-many-branches,too-many-statements,multiple-imports,too-many-return-statements --ignore=migrations src/plugins/eschol/
