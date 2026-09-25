@@ -100,6 +100,7 @@ class EscholConnectorTest(TestCase):
         e.is_doi_registered = False
         self.assertTrue(e.has_doi_error())
 
+    @override_settings(URL_CONFIG="path")
     def test_xml_to_html_galley(self):
         xml_filepath = f'{os.path.dirname(__file__)}/test_files/glossa_test.xml'
 
@@ -157,6 +158,7 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(j['imgFiles'][0]['file'], 'test.png')
         self.assertIn(f"{base_furl}{img_obj.pk}/?access=", j['imgFiles'][0]['fetchLink'])
 
+    @override_settings(URL_CONFIG="path")
     def test_galley(self):
         f = File.objects.create(article_id=self.article.pk,
                                 label="file",
@@ -172,6 +174,7 @@ class EscholConnectorTest(TestCase):
         self.assertIn(f"{base_url}{self.article.pk}/file/{f.pk}/?access=", j["contentLink"])
         self.assertEqual(j["contentFileName"], "test.pdf")
 
+    @override_settings(URL_CONFIG="path")
     def test_html_galley(self):
         f = File.objects.create(article_id=self.article.pk,
                                 label="file",
@@ -210,6 +213,7 @@ class EscholConnectorTest(TestCase):
         self.assertEqual(len(j['cssFiles']), 1)
         self.assertEqual(j['cssFiles'][0]['file'], 'test.css')
 
+    @override_settings(URL_CONFIG="path")
     def test_supp_files(self):
         f1 = SimpleUploadedFile(
             "test.pdf",
@@ -458,13 +462,13 @@ class EscholConnectorTest(TestCase):
             elif i['scheme'] == 'DOI':
                 self.assertEqual(i["id"], doi.identifier)
         self.assertEqual(len(j["authors"]), 2)
-        self.assertEqual(j["authors"][0]['nameParts']['fname'], "Author")
-        self.assertEqual(j["authors"][0]['nameParts']['lname'], "User")
-        self.assertEqual(j["authors"][0]['nameParts']['institution'], "Author institution")
-        self.assertEqual(j["authors"][0]['nameParts']['mname'], "A")
-        self.assertEqual(j["authors"][0]['email'], "authoruser@martineve.com")
-        self.assertEqual(j["authors"][0]['orcid'], "0000-0000-0000-0000")
-        self.assertEqual(j["authors"][1]['nameParts']['organization'], "Author Collective")
+        self.assertEqual(j["authors"][1]['nameParts']['fname'], "Author")
+        self.assertEqual(j["authors"][1]['nameParts']['lname'], "User")
+        self.assertEqual(j["authors"][1]['nameParts']['institution'], "Author institution")
+        self.assertEqual(j["authors"][1]['nameParts']['mname'], "A")
+        self.assertEqual(j["authors"][1]['email'], "authoruser@martineve.com")
+        self.assertEqual(j["authors"][1]['orcid'], "0000-0000-0000-0000")
+        self.assertEqual(j["authors"][0]['nameParts']['organization'], "Author Collective")
 
         self.assertEqual(len(j), 33)
 
