@@ -36,5 +36,6 @@ jobs:
     - name: Analysing the code with pylint
       env:
         PYTHONPATH: ./src/
+        DJANGO_SETTINGS_MODULE: core.janeway_global_settings
       run: |
-        pylint --load-plugins pylint_django --django-settings-module=core.dev_settings --disable=missing-function-docstring,missing-module-docstring,missing-class-docstring,multiple-statements,too-many-arguments,too-many-locals,too-many-branches,too-many-statements,multiple-imports,too-many-return-statements --ignore=migrations src/plugins/eschol/
+        pylint --load-plugins pylint_django --disable=missing-function-docstring,missing-module-docstring,missing-class-docstring,multiple-statements,too-many-arguments,too-many-locals,too-many-branches,too-many-statements,multiple-imports,too-many-return-statements --ignore=migrations src/plugins/eschol/

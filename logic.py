@@ -298,11 +298,15 @@ def get_article_json(article, unit):
         if SectionOrdering.objects.filter(issue=issue, section=article.section).exists():
             sorder = SectionOrdering.objects.get(issue=issue, section=article.section).order + 1
         else:
-            sorder = list(
+            # get the section ids from all of the articles in order
+            section_ids = list(
                 issue.get_sorted_articles()\
                     .values_list('section__pk', flat=True)\
-                    .distinct()
-            ).index(article.section.pk) + 1
+            )
+            # reduce the list to distinct section ids
+            # find the placement of this article's section
+            # add one because jschol starts at 1
+            sorder = list(dict.fromkeys(section_ids)).index(article.section.pk) + 1
         if ArticleOrdering.objects.filter(issue=issue,
                                           section=article.section,
                                           article=article).exists():
